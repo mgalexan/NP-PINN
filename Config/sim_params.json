@@ -1,0 +1,34 @@
+{
+    "pi_b":  {
+        "normal" : 20,
+        "tumor" : 20
+    },
+
+    "pi_i" : {
+        "normal" : 10,
+        "tumor" : 15
+    },
+
+    "sigma_s": {
+        "normal" : 0.91,
+        "tumor" : 0.82
+    },
+
+    "S/V" : {
+        "normal" : 7000,
+        "tumor" : 20000
+    },
+
+    "L_PL(S/V)_L" : {
+        "normal" : 1.33e-5,
+        "tumor" : 0
+    },
+
+    "kappa" : {
+        "normal" : 8.53e-9,
+        "tumor" : 4.13e-8
+    },
+
+    "P_b" : 15.6,
+    "P_L" : 0
+}
