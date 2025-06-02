@@ -1,11 +1,15 @@
 import numpy as np
 import json
 import pickle
+import matplotlib.pyplot as plt
 from os import path
+
 from scipy.sparse.linalg import cg, LaplacianNd, aslinearoperator
 from scipy.sparse import diags_array
+
 from Environment.geometry import GeometrySpace
 from Environment.tumors import Tumor
+
 
           
 class ParamSpace:
@@ -75,12 +79,10 @@ class ParamSpace:
         """ Compute the pressure gradients within the tissue """
 
         if not(isinstance(self.tumor_locs, np.ndarray)):
-            print("Error: Please call compile_tumors before computing the pressure")
-            return
+            self.compile_tumors()
         
         if not(self.param_arrays):
-            print("Error: Please call get_param_arrays before computing the pressure")
-            return
+            self.get_param_arrays()
         
 
         # Alias parameter arrays to p for ease of use
@@ -117,7 +119,7 @@ class ParamSpace:
             print("Warning: Convergence not achieved in the Linalg Solver")
 
 def save_env(space: ParamSpace, ext: str) -> None:
-
+    """ Saves a ParamSpace object for reuse """
     try:
         with open(path.join(ext), "xb") as f:
             pickle.dump(space, f)
@@ -128,8 +130,50 @@ def save_env(space: ParamSpace, ext: str) -> None:
 
 
 def load_env(ext: str) -> ParamSpace:
+    """ Loads a previously created ParamSpace object """
     with open(path.join(ext), "rb") as f:
             newspace = pickle.load(f)
     return newspace
 
+class EnvPlotter:
 
+    def __init__(self, env: ParamSpace):
+        self.env = env
+
+    def full_plot(self, n_slices: int = 4, custom_title : str = "Pressure in the Tumor Microenvironment (mmHg)"):
+
+        if self.env.geometry.dim == 2:
+
+            fig, ax = plt.subplots()
+
+            fig.figsize = [6.4, 4.8]
+
+            pos = ax.imshow(self.env.P)
+
+            fig.colorbar(pos)
+            fig.suptitle(custom_title)
+        
+        else:
+
+            fig, ax = plt.subplots(n_slices // 4 + 1, 4)
+            fig.set_figwidth(6.4 * 4)
+            fig.set_figheight(4.8 * (n_slices // 4 + 1))
+
+
+
+            inc = self.env.geometry.shape_z // n_slices
+            ds = self.env.geometry.ds
+            max_P = self.env.P.max()
+            min_P = self.env.P.min()
+
+            for i in range(n_slices):
+
+                to_show = self.env.P[i * inc + inc // 2, :, :]
+                title_string = f"z = {(i * inc + inc //2) * ds}"
+                pos = ax[i // 4, i % 4].imshow(to_show, vmin= min_P, vmax = max_P)
+                ax[i // 4, i % 4].set_title(title_string, fontsize = 10)
+
+            fig.colorbar(pos, ax=ax.ravel().tolist())
+            fig.suptitle(custom_title)
+    
+        return fig
