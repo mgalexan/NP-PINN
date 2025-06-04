@@ -142,6 +142,14 @@ class EnvPlotter:
 
     def full_plot(self, n_slices: int = 4, custom_title : str = "Pressure in the Tumor Microenvironment (mmHg)"):
 
+        width = self.env.geometry.width
+        height = self.env.geometry.height
+        width_px = self.env.geometry.shape_x
+        height_px = self.env.geometry.shape_y
+
+        x_labels = [str(i) for i in range(width + 1)]
+        y_labels = [str(i) for i in range(height + 1)]        
+
         if self.env.geometry.dim == 2:
 
             fig, ax = plt.subplots()
@@ -149,13 +157,15 @@ class EnvPlotter:
             fig.figsize = [6.4, 4.8]
 
             pos = ax.imshow(self.env.P)
+            ax.set_xticks(np.linspace(0, width_px, width + 1), x_labels)
+            ax.set_yticks(np.linspace(0, height_px, height + 1), y_labels)
 
             fig.colorbar(pos)
             fig.suptitle(custom_title)
         
         else:
 
-            fig, ax = plt.subplots(n_slices // 4 + 1, 4)
+            fig, ax = plt.subplots(n_slices // 4 + bool(n_slices % 4), 4)
             fig.set_figwidth(6.4 * 4)
             fig.set_figheight(4.8 * (n_slices // 4 + 1))
 
@@ -169,9 +179,12 @@ class EnvPlotter:
             for i in range(n_slices):
 
                 to_show = self.env.P[i * inc + inc // 2, :, :]
-                title_string = f"z = {(i * inc + inc //2) * ds}"
+                title_string = f"z = {round((i * inc + inc //2) * ds, 2)}"
                 pos = ax[i // 4, i % 4].imshow(to_show, vmin= min_P, vmax = max_P)
                 ax[i // 4, i % 4].set_title(title_string, fontsize = 10)
+                ax[i // 4, i % 4].set_xticks(np.linspace(0, width_px, width + 1), x_labels)
+                ax[i // 4, i % 4].set_yticks(np.linspace(0, height_px, height + 1), y_labels)
+
 
             fig.colorbar(pos, ax=ax.ravel().tolist())
             fig.suptitle(custom_title)

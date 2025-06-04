@@ -1,7 +1,7 @@
 import numpy as np
 import pickle
 from os import path
-
+from fenics import BoxMesh, Point, RectangleMesh
 
 class GeometrySpace():
     """
@@ -19,6 +19,7 @@ class GeometrySpace():
         self.shape_y = int(height // ds + 1)
         self.shape_z = int(depth  // ds + 1)
         self.coord_matrix = None
+        self.mesh = None
 
         # If the depth is 1 we determine the system to be 2d
 
@@ -71,6 +72,20 @@ class GeometrySpace():
             coord_matrix = np.concatenate([x_coords, y_coords], 2)
 
         self.coord_matrix = coord_matrix
+    
+    def get_mesh(self):
+
+        if self.dim == 2:
+
+            mesh = RectangleMesh(Point(0,0), Point(self.width, self.height), self.shape_x, self.shape_y)
+        
+        else: 
+            
+            mesh = BoxMesh(Point(0,0,0), Point(self.width, self.height, self.depth), self.shape_x, self.shape_y, self.shape_z)
+
+        self.mesh
+
+
     
 
 
