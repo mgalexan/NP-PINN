@@ -1,9 +1,7 @@
 import numpy as np
 
-from scipy.interpolate import RegularGridInterpolator
-
 import ufl
-from dolfinx import fem, io, mesh, plot
+from dolfinx import fem, mesh
 from dolfinx.fem.petsc import LinearProblem
 from ufl import ds, dx, grad, inner
 from petsc4py.PETSc import ScalarType
@@ -59,10 +57,6 @@ def calculate_pressure(space: ParamSpace, boundary_cond: str) -> fem.function.Fu
     
     # Set up the equation for pressure
 
-    print(type(leading))
-    print(leading.ufl_domain())
-    print(u.ufl_domain())
-
 
     a = inner(grad(u), grad(v)) * dx - leading * u * v * dx          
 
@@ -73,7 +67,7 @@ def calculate_pressure(space: ParamSpace, boundary_cond: str) -> fem.function.Fu
     uh = problem.solve()
 
     # Small script to plot results until I figure out plotting
-    
+    '''
     import matplotlib.pyplot as plt
     from dolfinx import plot
     from mpi4py import MPI
@@ -101,5 +95,5 @@ def calculate_pressure(space: ParamSpace, boundary_cond: str) -> fem.function.Fu
         plt.ylabel("y")
         plt.axis("equal")
         plt.show()
-        
+        '''
     return uh

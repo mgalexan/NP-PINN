@@ -6,17 +6,17 @@ from Physics.calculate_pressure import calculate_pressure
 import numpy as np
 import matplotlib.pyplot as plt
 
-test_geo = GeometrySpace(10,10, 0, 0.05)
+test_geo = GeometrySpace(5, 5, 0, 0.05)
 
 test = ParamSpace(test_geo)
 
 test.open_params("./Config/sim_params.json")
 
-center1 = np.array([5,5])
+center1 = np.array([2,3])
 center2 = np.array([1,1])
 
 
-test.add_tumor(SphericalTumor(center1, 3))
+test.add_tumor(SphericalTumor(center1, 2))
 test.add_tumor(SphericalTumor(center2, 1))
 
 
