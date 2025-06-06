@@ -30,9 +30,9 @@ def pressure_constant(p: dict):
 
 """ The next equations serve to compute the terms Phi_B and Phi_L in the concentration equations """
 
-def C_P_val(t: float, p: dict) -> np.ndarray:
+def C_P_val(t: float, tau) -> np.ndarray:
 
-    return np.exp(t / p["tau"])
+    return np.exp(t / tau)
 
 def comp_phi_B(p: dict, P_i):
 
