@@ -1,7 +1,10 @@
 import numpy as np
 import pickle
 from os import path
-from fenics import BoxMesh, Point, RectangleMesh
+from dolfinx import mesh, fem
+from mpi4py import MPI
+
+
 
 class GeometrySpace():
     """
@@ -20,6 +23,7 @@ class GeometrySpace():
         self.shape_z = int(depth  // ds + 1)
         self.coord_matrix = None
         self.mesh = None
+        self.V = None
 
         # If the depth is 1 we determine the system to be 2d
 
@@ -76,14 +80,27 @@ class GeometrySpace():
     def get_mesh(self):
 
         if self.dim == 2:
-
-            mesh = RectangleMesh(Point(0,0), Point(self.width, self.height), self.shape_x, self.shape_y)
+            
+            msh = mesh.create_rectangle(
+                comm=MPI.COMM_WORLD,
+                points=((0.0, 0.0), (self.width, self.height)),
+                n=(self.shape_x, self.shape_y),
+                cell_type=mesh.CellType.triangle,
+            )
         
         else: 
-            
-            mesh = BoxMesh(Point(0,0,0), Point(self.width, self.height, self.depth), self.shape_x, self.shape_y, self.shape_z)
+            msh = mesh.create_box(
+                comm=MPI.COMM_WORLD,
+                points=((0.0, 0.0, 0.0), (self.width, self.height, self.depth)),
+                n=(self.shape_x, self.shape_y, self.shape_z),
+                cell_type=mesh.CellType.tetrahedron,
+            )
 
-        self.mesh
+        # Create a FunctionSpace on the 
+            
+
+        self.mesh = msh
+        self.V = fem.functionspace(msh, ("Lagrange", 1))
 
 
     

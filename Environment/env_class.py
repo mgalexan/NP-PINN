@@ -4,11 +4,12 @@ import pickle
 import matplotlib.pyplot as plt
 from os import path
 
-from scipy.sparse.linalg import cg, LaplacianNd, aslinearoperator
-from scipy.sparse import diags_array
+from scipy.interpolate import RegularGridInterpolator
 
 from Environment.geometry import GeometrySpace
 from Environment.tumors import Tumor
+
+from dolfinx import fem
 
 
           
@@ -24,7 +25,7 @@ class ParamSpace:
         self.tumor_locs = None
         self.params = None
         self.param_arrays = None
-        self.P = None
+        self.param_funcs = None
 
 
     def open_params(self, ext: str) -> None:
@@ -40,7 +41,7 @@ class ParamSpace:
 
     def compile_tumors(self) -> None:
         """ Internally compile a list of locations of tumors for modelling """
-        tumor_locs = np.zeros(self.geometry.shape).astype(np.bool)
+        tumor_locs = np.zeros(self.geometry.shape).astype(np.bool_)
 
 
         for i in range(len(self.tumors)):
@@ -72,9 +73,61 @@ class ParamSpace:
                 param_array = np.ones(self.geometry.shape) * self.params[param]
         
             self.param_arrays[param] = param_array
+    
+    def get_fenics_functions(self, keys_div: set = {"kappa"}) -> None:
+        """ Generates a FEniCSx Function for each of the parameters in self.param_arrays """
+        if not(self.param_arrays):
+            print("Error: Initialize Parameter Arrays before creating the FEniCSx functions")
+            return
         
+        self.param_funcs = {}
+
+        V = self.geometry.V
+        msh = self.geometry.mesh
+
+        for param in self.param_arrays.keys():
+
+            # If the parameter is to be used as a divisor in the equation, the fill value should be 1 to avoid infinited values
+
+            if param in keys_div:
+                fill = 1.0
+            else:
+                fill = 0.0
+
+            if self.geometry.dim == 2:
+
+                x_coords = self.geometry.coord_matrix[0,:,0]
+                y_coords = self.geometry.coord_matrix[:,0,1]
+
+                interp = RegularGridInterpolator((x_coords, y_coords), self.param_arrays[param], bounds_error=False, fill_value= fill)
+
+                        
+            else:
+                x_coords = self.geometry.coord_matrix[0,0,:,0]
+                y_coords = self.geometry.coord_matrix[0,:,0,1]
+                z_coords = self.geometry.coord_matrix[:,0,0,2]
+
+                interp = RegularGridInterpolator((x_coords, y_coords, z_coords), self.param_arrays[param], bounds_error=False, fill_value= fill)
+
+            
+            func = fem.Function(V)
+
+            dof_coords = V.tabulate_dof_coordinates()
+
+            if self.geometry.dim == 2:
+                dof_coords = dof_coords[:, :2] # Remove the 3d embedding
+
+
+            dof_coords = dof_coords.reshape((-1, msh.geometry.dim))
+
+            values = interp(dof_coords)
+
+            # Assign to the Function
+            func.x.array[:] = values
+
+            self.param_funcs[param] = func
     
-    
+    ''' --DEPRECATED--
     def calculate_pressure(self, boundary_cond: str) -> None:
         """ Compute the pressure gradients within the tissue """
 
@@ -117,6 +170,7 @@ class ParamSpace:
         
         if info != 0:
             print("Warning: Convergence not achieved in the Linalg Solver")
+            '''
 
 def save_env(space: ParamSpace, ext: str) -> None:
     """ Saves a ParamSpace object for reuse """
@@ -135,6 +189,8 @@ def load_env(ext: str) -> ParamSpace:
             newspace = pickle.load(f)
     return newspace
 
+
+"""  --DEPRECATED--
 class EnvPlotter:
 
     def __init__(self, env: ParamSpace):
@@ -190,3 +246,4 @@ class EnvPlotter:
             fig.suptitle(custom_title)
     
         return fig
+"""   

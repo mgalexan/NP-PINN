@@ -16,8 +16,8 @@ class MLParams():
             self.params = json.load(f)
 
 
-class ForwardPINN(nn.Module):
-    """ A PINN to handle the forward case of learning the dynamics"""
+class BackwardPINN(nn.Module):
+    """ A PINN to handle the backwards case of learning the dynamics"""
 
     def __init__(self, env: ParamSpace, param_obj: MLParams):
         super().__init__()

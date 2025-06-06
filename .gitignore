@@ -6,3 +6,10 @@ miniconda.sh
 Environment/__pycache__/env_class.cpython-310.pyc
 Environment/__pycache__/geometry.cpython-310.pyc
 Environment/__pycache__/tumors.cpython-310.pyc
+Physics/__pycache__/equations.cpython-310.pyc
+Environment/__pycache__/env_class.cpython-38.pyc
+Environment/__pycache__/geometry.cpython-38.pyc
+Environment/__pycache__/tumors.cpython-38.pyc
+Physics/__pycache__/calculate_pressure.cpython-311.pyc
+Physics/__pycache__/equations.cpython-38.pyc
+Physics/__pycache__/equations.cpython-311.pyc
