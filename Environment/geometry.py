@@ -30,6 +30,9 @@ class GeometrySpace():
         if self.depth == 0:
             self.dim = 2
             self.shape = (self.shape_x, self.shape_y)
+        if self.height == 0:
+            self.dim = 1
+            self.shape = (self.shape_x)
         else:
             self.dim = 3
             self.shape = (self.shape_x, self.shape_y, self.shape_z)
@@ -40,11 +43,12 @@ class GeometrySpace():
         """ Get a matrix with the coordinates of each point in xzy """
 
         x_coords = np.linspace(0, self.width, self.shape_x)
-        y_coords = np.linspace(0, self.height, self.shape_y)
+        if self.dim > 1:
+            y_coords = np.linspace(0, self.height, self.shape_y)
         if self.dim > 2:
             z_coords = np.linspace(0, self.depth, self.shape_z)
         
-        if self.dim > 2:
+        if self.dim == 3:
 
             # Reshape coordinates to corret dimensions
             x_coords = x_coords.reshape((1,1,-1,1))
@@ -63,6 +67,10 @@ class GeometrySpace():
 
             coord_matrix = np.concatenate([x_coords, y_coords, z_coords], 3)
         
+        elif self.dim == 1:
+            x_coords = x_coords.reshape((-1,1))
+            coord_matrix = x_coords
+
         else:
             # Reshape coordinates to corret dimensions
             x_coords = x_coords.reshape((1,-1,1))
@@ -87,6 +95,14 @@ class GeometrySpace():
                 n=(self.shape_x, self.shape_y),
                 cell_type=mesh.CellType.triangle,
             )
+        
+        elif self.dim == 1:
+            msh = mesh.create_interval(
+                comm=MPI.COMM_WORLD,
+                points=((0.0), (self.width)),
+                nx=self.shape_x
+            )
+                
         
         else: 
             msh = mesh.create_box(

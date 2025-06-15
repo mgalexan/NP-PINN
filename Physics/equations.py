@@ -32,7 +32,7 @@ def pressure_constant(p: dict):
 
 def C_P_val(t: float, tau) -> np.ndarray:
 
-    return np.exp(t / tau)
+    return np.exp(-t / tau)
 
 def comp_phi_B(p: dict, P_i):
 
@@ -44,23 +44,28 @@ def comp_phi_B(p: dict, P_i):
 def comp_phi_L(p: dict, P_i):
     return p["L_PL(S/V)_L"] * (P_i - p["P_L"])
 
-def comp_Phi_B(p: dict, P_i, C_P, C_F):
+def comp_Phi_CF(p: dict, P_i):
 
     phi_B = comp_phi_B(p, P_i)
 
-    Pe = phi_B * (1.0 - p["sigma_f"]) / (p["P"] * p["S/V"])
-
-    Pe_factor = Pe / (ufl.exp(Pe) - 1.0)
-
-    term1 = phi_B * (1.0 - p["sigma_f"]) * C_P
-
-    term2 = p["P"] * p["S/V"] * (C_P - C_F)
-
-    return term1 + term2 * Pe_factor
-
-def comp_Phi_L(p: dict, P_i, C_F):
-
     phi_L = comp_phi_L(p, P_i)
 
-    return phi_L * C_F
+    Pe = phi_B * (1.0 - p["sigma_f"]) / (p["P"] * p["S/V"])
+
+    Pe_factor =  p["P"] * p["S/V"] * Pe / (ufl.exp(Pe) - 1.0)
+
+    return (Pe_factor + phi_L)
+
+def comp_Phi_C(p: dict, P_i):
+
+    phi_B = comp_phi_B(p, P_i)
+    
+    Pe = phi_B * (1.0 - p["sigma_f"]) / (p["P"] * p["S/V"])
+
+    term1 = p["P"] * p["S/V"] * Pe / (ufl.exp(Pe) - 1.0)
+
+
+    term2 = phi_B * (1.0 - p["sigma_f"]) 
+
+    return (term1 + term2)
 

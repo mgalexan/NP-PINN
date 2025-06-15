@@ -58,7 +58,7 @@ def calculate_pressure(space: ParamSpace, boundary_cond: str) -> fem.function.Fu
     # Set up the equation for pressure
 
 
-    a = inner(grad(u), grad(v)) * dx - leading * u * v * dx          
+    a =  inner(grad(u), grad(v)) * dx - leading * u * v * dx          
 
     L = constant * v * dx
 
@@ -66,8 +66,9 @@ def calculate_pressure(space: ParamSpace, boundary_cond: str) -> fem.function.Fu
     problem = LinearProblem(a, L, bcs=[bc], petsc_options={"ksp_type": "preonly", "pc_type": "lu"})
     uh = problem.solve()
 
-    # Small script to plot results until I figure out plotting
     '''
+    # Small script to plot results until I figure out plotting
+    
     import matplotlib.pyplot as plt
     from dolfinx import plot
     from mpi4py import MPI
@@ -90,10 +91,12 @@ def calculate_pressure(space: ParamSpace, boundary_cond: str) -> fem.function.Fu
 
         plt.figure(figsize=(8, 4))
         plt.tricontourf(points[:, 0], points[:, 1], triangle_cells, values, 100, cmap="viridis")
-        plt.colorbar(label="u")
-        plt.xlabel("x")
-        plt.ylabel("y")
+        plt.colorbar(label="P (mmHg)")
+        plt.xlabel("x (cm)")
+        plt.ylabel("y (cm)")
+        plt.title("Pressure in the Tumor Microenvironment")
         plt.axis("equal")
+        plt.savefig("./Plots/test_fig.png")
         plt.show()
-        '''
+    '''
     return uh

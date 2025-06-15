@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 from os import path
 
 from scipy.interpolate import RegularGridInterpolator
+from scipy.sparse.linalg import LaplacianNd, aslinearoperator, cg
+from scipy.sparse import diags_array
 
 from Environment.geometry import GeometrySpace
 from Environment.tumors import Tumor
@@ -74,7 +76,7 @@ class ParamSpace:
         
             self.param_arrays[param] = param_array
     
-    def get_fenics_functions(self, keys_div: set = {"kappa"}) -> None:
+    def get_fenics_functions(self, keys_div: set = {"kappa", "S/V", "P"}) -> None:
         """ Generates a FEniCSx Function for each of the parameters in self.param_arrays """
         if not(self.param_arrays):
             print("Error: Initialize Parameter Arrays before creating the FEniCSx functions")
@@ -101,7 +103,12 @@ class ParamSpace:
 
                 interp = RegularGridInterpolator((x_coords, y_coords), self.param_arrays[param], bounds_error=False, fill_value= fill)
 
-                        
+            elif self.geometry.dim == 1:
+                x_coords = self.geometry.coord_matrix[:,0]
+
+                interp = RegularGridInterpolator([x_coords], self.param_arrays[param], bounds_error=False, fill_value= fill)
+
+
             else:
                 x_coords = self.geometry.coord_matrix[0,0,:,0]
                 y_coords = self.geometry.coord_matrix[0,:,0,1]
@@ -116,6 +123,9 @@ class ParamSpace:
 
             if self.geometry.dim == 2:
                 dof_coords = dof_coords[:, :2] # Remove the 3d embedding
+            
+            if self.geometry.dim == 1:
+                dof_coords = dof_coords[:, :1]
 
 
             dof_coords = dof_coords.reshape((-1, msh.geometry.dim))
@@ -127,7 +137,7 @@ class ParamSpace:
 
             self.param_funcs[param] = func
     
-    ''' --DEPRECATED--
+    ''' --DEPRECATED-- '''
     def calculate_pressure(self, boundary_cond: str) -> None:
         """ Compute the pressure gradients within the tissue """
 
@@ -170,7 +180,7 @@ class ParamSpace:
         
         if info != 0:
             print("Warning: Convergence not achieved in the Linalg Solver")
-            '''
+            
 
 def save_env(space: ParamSpace, ext: str) -> None:
     """ Saves a ParamSpace object for reuse """
