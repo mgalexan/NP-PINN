@@ -26,13 +26,12 @@ class GeometrySpace():
         self.V = None
 
         # If the depth is 1 we determine the system to be 2d
-
-        if self.depth == 0:
-            self.dim = 2
-            self.shape = (self.shape_x, self.shape_y)
         if self.height == 0:
             self.dim = 1
             self.shape = (self.shape_x)
+        elif self.depth == 0:
+            self.dim = 2
+            self.shape = (self.shape_x, self.shape_y)
         else:
             self.dim = 3
             self.shape = (self.shape_x, self.shape_y, self.shape_z)
@@ -82,6 +81,7 @@ class GeometrySpace():
             y_coords = np.repeat(y_coords, self.shape_x, 1)
 
             coord_matrix = np.concatenate([x_coords, y_coords], 2)
+
 
         self.coord_matrix = coord_matrix
     

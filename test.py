@@ -3,6 +3,7 @@ from Environment.env_class import ParamSpace, save_env, load_env
 from Environment.tumors import SphericalTumor
 from Physics.calculate_pressure import calculate_pressure
 from Physics.calculate_conc import calculate_concentrations
+from Util.evaluate_function import evaluate_function_at_points
 
 import numpy as np
 import matplotlib
@@ -11,8 +12,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 plt.style.use("ggplot")
 
-test_geo = GeometrySpace(10, 10,0, 0.01)
-test_geo.get_coordinate_matrix()
+test_geo = GeometrySpace(10, 10,0, 0.05)
 
 test = ParamSpace(test_geo)
 
@@ -27,7 +27,18 @@ test.add_tumor(SphericalTumor(center1, 3))
 
 P_i = calculate_pressure(test, "dirichlet")
 
-C = calculate_concentrations(test, 0.01, 10, P_i)
+# Get mesh vertex coordinates
+points = P_i.function_space.mesh.geometry.x
+
+# Ensure proper format: shape (n_points, 3), dtype float64, contiguous
+points = np.ascontiguousarray(points, dtype=np.float64)
+
+vals, _ = evaluate_function_at_points(P_i, points)
+
+plt.imshow(vals.reshape(201,201))
+plt.savefig("./Plots/pleasework.png")
+
+#C = calculate_concentrations(test, 0.01, 10, P_i)
 
 '''
 C = [np.array(C[i]) for i in range(3)]
@@ -55,4 +66,4 @@ for i, label in enumerate(labels):
 plt.show()
 
 '''
-plt.savefig("./Plots/concs.png")
+#plt.savefig("./Plots/concs.png")
