@@ -49,11 +49,13 @@ def calculate_concentrations(env: ParamSpace, dt: float, T: float, P_i: fem.func
         marker=lambda x: np.isclose(x[0], 0.0) | np.isclose(x[0], 2.0),
     )
 
-    dofs = fem.locate_dofs_topological(V=W, entity_dim= msh.topology.dim - 1, entities=facets)
-
     if boundary_cond == "dirichlet":
-        cond = fem.dirichletbc(value=ScalarType(0), dofs=dofs, V=V)
-        bcs = 3 * [cond]
+        bcs = []
+        for i in range(W.num_sub_spaces):
+            sub, map = W.sub(i).collapse()
+            dofs = fem.locate_dofs_topological(sub, msh.topology.dim - 1, facets)
+            bc = fem.dirichletbc(ScalarType(0), dofs, sub)
+            bcs.append(bc)
 
 
     else:
@@ -65,7 +67,8 @@ def calculate_concentrations(env: ParamSpace, dt: float, T: float, P_i: fem.func
     C, C_n = fem.Function(W), fem.Function(W)
 
     # Split into the three items needed:
-    C_Nn, C_Fn, C_INTn  = ufl.split(C_n)
+    C_Nn, C_Fn, C_INTn = C_n.split()
+    
 
     # Trial and Test functions for the weak formulation
     C_Nt, C_Ft, C_INTt = ufl.TrialFunctions(W)
@@ -73,6 +76,7 @@ def calculate_concentrations(env: ParamSpace, dt: float, T: float, P_i: fem.func
 
     # Set up initial conditions:
     if initial == "zero":
+
         pass
 
     else:
@@ -90,25 +94,6 @@ def calculate_concentrations(env: ParamSpace, dt: float, T: float, P_i: fem.func
 
     Phi_CF = comp_Phi_CF(p, P_i)
     Phi_C = comp_Phi_C(p, P_i)
-
-    phi_proj = fem.Function(V)
-    v = ufl.TestFunction(V)
-
-    # Define projection problem: find phi_proj in V s.t.
-    # (phi_proj, v) = (Phi_C, v)  (L2 projection)
-    a_proj = ufl.inner(ufl.TrialFunction(V), v) * ufl.dx
-    L_proj = ufl.inner(Phi_C, v) * ufl.dx
-
-    a_form = fem.form(a_proj)
-    L_form = fem.form(L_proj)
-
-    solver = LinearProblem(a_form, L_form, u=phi_proj)
-
-
-
-    # Now phi_proj is a real Function you can inspect
-    print("Phi_C projected min:", phi_proj.x.array.min())
-    print("Phi_C projected max:", phi_proj.x.array.max())
 
 
     # Assemble a Bilinear form for solving: 
@@ -130,9 +115,7 @@ def calculate_concentrations(env: ParamSpace, dt: float, T: float, P_i: fem.func
         + p["K_deg-INT"] * C_INTt * w_INT
         - p["K_INT"] * C_Ft * w_INT ) * dx   
 
-    a = fem.form(a) 
-
-                                   
+    a = fem.form(a)                                 
 
     # Now for the Linear term:
 
@@ -148,7 +131,7 @@ def calculate_concentrations(env: ParamSpace, dt: float, T: float, P_i: fem.func
 
 
     # Linear Solver:
-    problem = LinearProblem(a, L, bcs=bcs, u= C, petsc_options={"ksp_type": "gmres"})
+    problem = LinearProblem(a, L, bcs=bcs, u= C, petsc_options={"ksp_type": "gmres", "pc_type": "hypre"})
 
 
 
@@ -161,8 +144,8 @@ def calculate_concentrations(env: ParamSpace, dt: float, T: float, P_i: fem.func
     C_N_vals = []
     C_F_vals = []
     C_INT_vals = []
+    C_N, C_F, C_INT = C.split()
 
-    N = V.dofmap.index_map.size_local * V.dofmap.index_map_bs
   
     for _ in tqdm(range(timesteps)):
 
@@ -182,10 +165,11 @@ def calculate_concentrations(env: ParamSpace, dt: float, T: float, P_i: fem.func
         C_n.x.array[:] = C.x.array
 
         # Store results
-        arr = C.x.array
-        C_N_vals.append(arr[0:N])
-        C_F_vals.append(arr[N:2*N])
-        C_INT_vals.append(arr[2*N:3*N])
+        C_N_vals.append(C_N.x.array.copy())
+        C_F_vals.append(C_F.x.array.copy())
+        C_INT_vals.append(C_INT.x.array.copy())
+
+
     
 
     return C_N_vals, C_F_vals, C_INT_vals

@@ -8,51 +8,51 @@ import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 plt.style.use("ggplot")
 
-test_geo = GeometrySpace(10, 0,0, 0.01)
+test_geo = GeometrySpace(10, 10,0, 0.01)
 test_geo.get_coordinate_matrix()
 
 test = ParamSpace(test_geo)
 
 test.open_params("./Config/sim_params.json")
 
-center1 = np.array([5])
+center1 = np.array([5,5])
 #center2 = np.array([1,1])
 #center3 = np.array([5,4])
 
 
-test.add_tumor(SphericalTumor(center1, 4))
-
-#test.add_tumor(SphericalTumor(center2, 3))
-#test.add_tumor(SphericalTumor(center3, 1.5))
-
-#test.calculate_pressure("dirichlet")
-#P_i = test.P
+test.add_tumor(SphericalTumor(center1, 3))
 
 P_i = calculate_pressure(test, "dirichlet")
 
-
-C1, C2, C3 = calculate_concentrations(test, 0.01, 10, P_i)
-
-fig = plt.imshow(C1)
-plt.colorbar(fig)
-plt.savefig("./Plots/test_fig.png")
-#P_i = P_i.reshape(1001, 1001, )
+C = calculate_concentrations(test, 0.01, 10, P_i)
 
 '''
-plt.imshow(P_i)
-plt.xlabel("Distance from Center")
-plt.ylabel("Pressure (mmHg)")
-#plt.xticks(np.linspace(0, 51, 5),np.linspace(0, 5, 5))
-plt.title("Radial Tumor Pressure")
+C = [np.array(C[i]) for i in range(3)]
 
+# Color limits
+Cmin = np.min([np.min(ci) for ci in C])
+Cmax = np.max([np.max(ci) for ci in C])
 
-plt.savefig("./plots/radial_pressure_scipy.png")
+# Create 1D coordinate arrays (no need to reshape)
+x = np.linspace(0, 10, 1000)     # len = 1000 → 999 intervals
+y = np.linspace(0, 10, 3004)     # len = 3004 → 3003 intervals
 
+# Create figure with subplots
 
+fig, ax = plt.subplots(3, figsize=(8, 10), constrained_layout=True)
 
+labels = ["C_N", "C_F", "C_INT"]
 
+for i, label in enumerate(labels):
+    norm = mcolors.TwoSlopeNorm(vmin=Cmin, vcenter=0, vmax=Cmax)
+    pcm = ax[i].pcolormesh(x, y, C[i], shading='nearest', cmap='seismic', norm=norm)
+    ax[i].set_title(label)
+    fig.colorbar(pcm, ax=ax[i])  # Individual colorbar per subplot (optional)
 
-# C_N, C_F, C_INT = calculate_concentrations(test, 0.001, 1, P_i)
+plt.show()
+
 '''
+plt.savefig("./Plots/concs.png")
