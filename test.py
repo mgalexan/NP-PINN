@@ -12,58 +12,78 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 plt.style.use("ggplot")
 
-test_geo = GeometrySpace(10, 10,0, 0.05)
+test_geo = GeometrySpace(10, 10, 0, 0.05)
 
 test = ParamSpace(test_geo)
 
 test.open_params("./Config/sim_params.json")
 
 center1 = np.array([5,5])
-#center2 = np.array([1,1])
-#center3 = np.array([5,4])
+#center2 = np.array([4, 2, 4])
+#center3 = np.array([6,5, 6.5])
 
 
-test.add_tumor(SphericalTumor(center1, 3))
+test.add_tumor(SphericalTumor(center1, 2))
+#test.add_tumor(SphericalTumor(center2, 2))
+#test.add_tumor(SphericalTumor(center3, 1))
 
-P_i = calculate_pressure(test, "dirichlet")
 
-# Get mesh vertex coordinates
-points = P_i.function_space.mesh.geometry.x
+P_i = calculate_pressure(test, "neumann")
 
-# Ensure proper format: shape (n_points, 3), dtype float64, contiguous
-points = np.ascontiguousarray(points, dtype=np.float64)
+
+C_N, C_F, C_INT = calculate_concentrations(test, 0.01, 0.5, P_i)
+
+print(C_N[-1].x.array)
+
+points = test_geo.coord_matrix.reshape(-1, test_geo.dim)
+
+C_N = [evaluate_function_at_points(c, points)[0].reshape(test_geo.shape) for c in C_N]
+C_F = [evaluate_function_at_points(c, points)[0].reshape(test_geo.shape) for c in C_F]
+C_INT = [evaluate_function_at_points(c, points)[0].reshape(test_geo.shape) for c in C_INT]
+
+
+fig = plt.imshow(C_INT[-1])
+plt.colorbar(fig)
+plt.savefig("./Plots/test_imconc.png")
+
+
+
+'''
+points = test_geo.coord_matrix.reshape(-1, 3)
+
 
 vals, _ = evaluate_function_at_points(P_i, points)
 
-plt.imshow(vals.reshape(201,201))
-plt.savefig("./Plots/pleasework.png")
+vals = vals.reshape(50, 50, 50)
+xvals = np.linspace(0, 5, 25)
 
-#C = calculate_concentrations(test, 0.01, 10, P_i)
+
+fig = plt.imshow(vals[25, :, :])
+plt.colorbar(fig, cmap="seismic")
+plt.xticks(np.arange(0,50, 5), np.linspace(0, 9, 10))
+plt.yticks(np.arange(0,50, 5), np.linspace(0, 9, 10))
+plt.xlabel("cm")
+plt.ylabel("cm")
+plt.title("Slice of Spatial Pressure in a Complex Environment")
+
+plt.savefig("./Plots/complex_pressure.png")
+
+plt.clf()
+
+fig = plt.imshow(test.tumor_locs[25, :, :])
+plt.xticks(np.arange(0,50, 5), np.linspace(0, 9, 10))
+plt.yticks(np.arange(0,50, 5), np.linspace(0, 9, 10))
+plt.xlabel("cm")
+plt.ylabel("cm")
+plt.title("Tumor Locations")
+plt.savefig("./Plots/tumor_locs.png")
+
+plt.clf()
+
+plt.plot(xvals, vals[25, :25, 25], c= "red", linewidth = 0.5)
+plt.xlabel("Distance from Center (cm)")
+plt.ylabel("Pressure (mmHg)")
+plt.title("Y-Direction Radial Pressure")
+plt.savefig("./Plots/complex_radial.png")
 
 '''
-C = [np.array(C[i]) for i in range(3)]
-
-# Color limits
-Cmin = np.min([np.min(ci) for ci in C])
-Cmax = np.max([np.max(ci) for ci in C])
-
-# Create 1D coordinate arrays (no need to reshape)
-x = np.linspace(0, 10, 1000)     # len = 1000 → 999 intervals
-y = np.linspace(0, 10, 3004)     # len = 3004 → 3003 intervals
-
-# Create figure with subplots
-
-fig, ax = plt.subplots(3, figsize=(8, 10), constrained_layout=True)
-
-labels = ["C_N", "C_F", "C_INT"]
-
-for i, label in enumerate(labels):
-    norm = mcolors.TwoSlopeNorm(vmin=Cmin, vcenter=0, vmax=Cmax)
-    pcm = ax[i].pcolormesh(x, y, C[i], shading='nearest', cmap='seismic', norm=norm)
-    ax[i].set_title(label)
-    fig.colorbar(pcm, ax=ax[i])  # Individual colorbar per subplot (optional)
-
-plt.show()
-
-'''
-#plt.savefig("./Plots/concs.png")

@@ -165,9 +165,9 @@ def calculate_concentrations(env: ParamSpace, dt: float, T: float, P_i: fem.func
         C_n.x.array[:] = C.x.array
 
         # Store results
-        C_N_vals.append(C_N.x.array.copy())
-        C_F_vals.append(C_F.x.array.copy())
-        C_INT_vals.append(C_INT.x.array.copy())
+        C_N_vals.append(C_N.copy())
+        C_F_vals.append(C_F.copy())
+        C_INT_vals.append(C_INT.copy())
 
 
     

@@ -4,6 +4,7 @@ import ufl
 from dolfinx import fem, mesh
 from dolfinx.fem.petsc import LinearProblem
 from ufl import ds, dx, grad, inner
+from dolfinx.mesh import exterior_facet_indices
 from petsc4py.PETSc import ScalarType
 
 from Physics.equations import pressure_leading, pressure_constant
@@ -28,13 +29,19 @@ def calculate_pressure(space: ParamSpace, boundary_cond: str) -> fem.function.Fu
     msh = space.geometry.mesh
     V = space.geometry.V
 
-    facets = mesh.locate_entities_boundary(
-        msh,
-        dim=(msh.topology.dim - 1),
-        marker=lambda x: np.isclose(x[0], 0.0) | np.isclose(x[0], 2.0),
-    )
+    
 
-    dofs = fem.locate_dofs_topological(V=V, entity_dim=msh.topology.dim - 1, entities=facets)
+    # Get all boundary facets
+    msh.topology.create_connectivity(msh.topology.dim - 1, msh.topology.dim)
+
+    facet_indices = exterior_facet_indices(msh.topology)
+
+    # Get degrees of freedom on those facets
+    dofs = fem.locate_dofs_topological(V=V, entity_dim=msh.topology.dim - 1, entities=facet_indices)
+
+    # Apply zero Dirichlet condition on the entire boundary
+    
+
 
     u = ufl.TrialFunction(V)
 
@@ -42,10 +49,13 @@ def calculate_pressure(space: ParamSpace, boundary_cond: str) -> fem.function.Fu
 
 
     # Set up boundary conditions
+    bcs = []
 
     if boundary_cond == "dirichlet":
-        bc = fem.dirichletbc(value=ScalarType(0), dofs=dofs, V=V)
-
+        bc = fem.dirichletbc(ScalarType(0), dofs, V)
+        bcs = [bc]
+    elif boundary_cond == "neumann":
+        pass
     else:
         print("Error: Unsupported boundary condition")
         return
@@ -63,40 +73,6 @@ def calculate_pressure(space: ParamSpace, boundary_cond: str) -> fem.function.Fu
     L = constant * v * dx
 
     # Solve the problem!
-    problem = LinearProblem(a, L, bcs=[bc], petsc_options={"ksp_type": "preonly", "pc_type": "lu"})
+    problem = LinearProblem(a, L, bcs, petsc_options={"ksp_type": "preonly", "pc_type": "lu"})
     uh = problem.solve()
-
-    '''
-    # Small script to plot results until I figure out plotting
-    
-    import matplotlib.pyplot as plt
-    from dolfinx import plot
-    from mpi4py import MPI
-
-    if MPI.COMM_WORLD.rank == 0:
-        cells, cell_types, points = plot.vtk_mesh(V)
-
-        def extract_cells_of_type(cells, cell_types, target_type):
-            indices = []
-            pos = 0
-            for ct in cell_types:
-                n = cells[pos]
-                if ct == target_type:
-                    indices.append(cells[pos + 1 : pos + 1 + n])
-                pos += n + 1
-            return np.array(indices)
-
-        triangle_cells = extract_cells_of_type(cells, cell_types, 5)
-        values = uh.x.array.real
-
-        plt.figure(figsize=(8, 4))
-        plt.tricontourf(points[:, 0], points[:, 1], triangle_cells, values, 100, cmap="viridis")
-        plt.colorbar(label="P (mmHg)")
-        plt.xlabel("x (cm)")
-        plt.ylabel("y (cm)")
-        plt.title("Pressure in the Tumor Microenvironment")
-        plt.axis("equal")
-        plt.savefig("./Plots/test_fig.png")
-        plt.show()
-    '''
     return uh

@@ -20,7 +20,7 @@
     },
 
     "L_PL(S/V)_L" : {
-        "normal" : 1.33e-5,
+        "normal" : 0.0,
         "tumor" : 0.0
     },
 
