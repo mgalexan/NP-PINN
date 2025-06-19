@@ -1,33 +1,22 @@
+from mpi4py import MPI
 import numpy as np
 from dolfinx.geometry import bb_tree, compute_collisions_points
+from dolfinx.mesh import locate_entities, meshtags
 
-
-def evaluate_function_at_points(f, points):
-    """
-    Evaluate a FEniCSx Function at arbitrary physical points.
-
-    Parameters:
-        f      : dolfinx.fem.Function - The function to evaluate.
-        points : (n, 2) or (n, 3) np.ndarray - Evaluation points.
-
-    Returns:
-        values : (n, ...) np.ndarray - Function values at the given points.
-        mask   : (n,) boolean np.ndarray - True where point was inside the mesh.
-    """
+def evaluate(f, points, comm=MPI.COMM_WORLD):
     mesh = f.function_space.mesh
+    gdim = mesh.geometry.dim
+    rank = comm.rank
+    size = comm.size
 
-    # Ensure input is (n, 3)
+    # Pad points to 3D for FEniCSx
     points = np.atleast_2d(points)
-    if points.shape[1] == 2:
-        points = np.column_stack((points, np.zeros(points.shape[0])))
-    elif points.shape[1] != 3:
-        raise ValueError("Points must have shape (n, 2) or (n, 3)")
+    padded_points = np.zeros((points.shape[0], 3), dtype=np.float64)
+    padded_points[:, :gdim] = points
 
-    points = np.ascontiguousarray(points, dtype=np.float64)
-
-    # Build bounding box tree and locate cells
+    # Each rank tries to find local points inside its mesh
     tree = bb_tree(mesh, mesh.topology.dim)
-    cell_candidates = compute_collisions_points(tree, points)
+    cell_candidates = compute_collisions_points(tree, padded_points)
 
     cells = np.array([
         cell_candidates.links(i)[0] if len(cell_candidates.links(i)) > 0 else -1
@@ -35,17 +24,17 @@ def evaluate_function_at_points(f, points):
     ], dtype=np.int32)
 
     mask = cells >= 0
-    valid_points = points[mask]
+    valid_points = padded_points[mask]
     valid_cells = cells[mask]
 
-    # Get value shape (e.g., (), (3,), (2,2), etc.)
-    shape = (1,)
-    values = np.full((points.shape[0], *shape), np.nan)
+    # Create local output array
+    value_shape = (1,)
+    local_values = np.full((points.shape[0], *value_shape), np.nan)
+    if np.any(mask):
+        local_values[mask] = f.eval(valid_points, valid_cells)
 
-    if len(valid_points) > 0:
-        valid_points = np.ascontiguousarray(valid_points, dtype=np.float64)
-        evaluated = np.zeros((valid_points.shape[0], *shape), dtype=np.float64)
-        evaluated = f.eval(valid_points, valid_cells)
-        values[mask] = evaluated
+    # Reduce by choosing non-NaN values from all ranks
+    global_values = np.full_like(local_values, np.nan)
 
-    return values, mask
+    comm.Allreduce(local_values, global_values, op=MPI.SUM)  # NaNs will add to NaN except where valid
+    return global_values, ~np.isnan(global_values).any(axis=1)

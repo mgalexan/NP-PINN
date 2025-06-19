@@ -2,7 +2,7 @@ import numpy as np
 from tqdm import tqdm
 
 import ufl
-from dolfinx import fem, mesh, la
+from dolfinx import fem, mesh
 from mpi4py import MPI
 from basix.ufl import mixed_element
 from dolfinx.fem.petsc import LinearProblem
@@ -48,15 +48,18 @@ def calculate_concentrations(env: ParamSpace, dt: float, T: float, P_i: fem.func
         dim=(msh.topology.dim - 1),
         marker=lambda x: np.isclose(x[0], 0.0) | np.isclose(x[0], 2.0),
     )
-
+    
+    bcs = []
     if boundary_cond == "dirichlet":
-        bcs = []
+        
         for i in range(W.num_sub_spaces):
             sub, map = W.sub(i).collapse()
             dofs = fem.locate_dofs_topological(sub, msh.topology.dim - 1, facets)
             bc = fem.dirichletbc(ScalarType(0), dofs, sub)
             bcs.append(bc)
 
+    if boundary_cond == "neumann":
+        pass
 
     else:
         print("Error: Unsupported boundary condition")
@@ -76,7 +79,6 @@ def calculate_concentrations(env: ParamSpace, dt: float, T: float, P_i: fem.func
 
     # Set up initial conditions:
     if initial == "zero":
-
         pass
 
     else:
@@ -156,10 +158,7 @@ def calculate_concentrations(env: ParamSpace, dt: float, T: float, P_i: fem.func
         C_P.value = C_P_val(t, tau)
 
         # Solve the system
-        problem.solve()
-
-        # Save the values to the list
-        
+        problem.solve()        
 
         # Replace the old values of concentrations with the new ones
         C_n.x.array[:] = C.x.array
