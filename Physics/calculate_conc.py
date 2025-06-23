@@ -59,7 +59,7 @@ def calculate_concentrations(env: ParamSpace, dt: float, T: float, P_i: fem.func
             bcs.append(bc)
 
     if boundary_cond == "neumann":
-        pass
+        pass        
 
     else:
         print("Error: Unsupported boundary condition")
@@ -136,7 +136,6 @@ def calculate_concentrations(env: ParamSpace, dt: float, T: float, P_i: fem.func
     problem = LinearProblem(a, L, bcs=bcs, u= C, petsc_options={"ksp_type": "gmres", "pc_type": "hypre"})
 
 
-
     # Main time loop:
 
     timesteps = int(T // dt)
@@ -147,7 +146,7 @@ def calculate_concentrations(env: ParamSpace, dt: float, T: float, P_i: fem.func
     C_F_vals = []
     C_INT_vals = []
     C_N, C_F, C_INT = C.split()
-
+    
   
     for _ in tqdm(range(timesteps)):
 
@@ -158,7 +157,14 @@ def calculate_concentrations(env: ParamSpace, dt: float, T: float, P_i: fem.func
         C_P.value = C_P_val(t, tau)
 
         # Solve the system
-        problem.solve()        
+
+
+        problem.solve()       
+
+        print(f"Step {t:.2f}")
+        print("Max C total:", np.max(C.x.array))
+        print("Max RHS:", problem.b.norm())
+        print("Max matrix A:", problem.A.norm()) 
 
         # Replace the old values of concentrations with the new ones
         C_n.x.array[:] = C.x.array

@@ -1,13 +1,12 @@
 from mpi4py import MPI
 import numpy as np
 from dolfinx.geometry import bb_tree, compute_collisions_points
-from dolfinx.mesh import locate_entities, meshtags
+from Environment.geometry import GeometrySpace
 
 def evaluate(f, points, comm=MPI.COMM_WORLD):
     mesh = f.function_space.mesh
     gdim = mesh.geometry.dim
     rank = comm.rank
-    size = comm.size
 
     # Pad points to 3D for FEniCSx
     points = np.atleast_2d(points)
@@ -27,14 +26,41 @@ def evaluate(f, points, comm=MPI.COMM_WORLD):
     valid_points = padded_points[mask]
     valid_cells = cells[mask]
 
-    # Create local output array
-    value_shape = (1,)
-    local_values = np.full((points.shape[0], *value_shape), np.nan)
+    # Create local output arrays
+    value_shape = (1,) if f.function_space.num_sub_spaces == 0 else f.value_shape
+    local_values = np.zeros((points.shape[0], *value_shape), dtype=np.float64)
+    local_mask = np.zeros((points.shape[0],), dtype=np.int32)
+
     if np.any(mask):
         local_values[mask] = f.eval(valid_points, valid_cells)
+        local_mask[mask] = 1
 
-    # Reduce by choosing non-NaN values from all ranks
-    global_values = np.full_like(local_values, np.nan)
+    # Global reduction using SUM and COUNT
+    global_values = np.zeros_like(local_values)
+    global_mask = np.zeros_like(local_mask)
 
-    comm.Allreduce(local_values, global_values, op=MPI.SUM)  # NaNs will add to NaN except where valid
-    return global_values, ~np.isnan(global_values).any(axis=1)
+    comm.Allreduce(local_values, global_values, op=MPI.SUM)
+    comm.Allreduce(local_mask, global_mask, op=MPI.SUM)
+
+    # Normalize to get average of contributing ranks (should be 1 in correct usage)
+    with np.errstate(invalid='ignore', divide='ignore'):
+        result = np.where(global_mask[:, None] > 0,
+                          global_values / global_mask[:, None],
+                          np.nan)
+
+    valid = global_mask > 0
+    return result, valid
+
+def evaluate_env(f, env: GeometrySpace, mpi = MPI.COMM_WORLD):
+    '''
+    A wrapper to evaluate functions spacially on the mesh
+    '''
+    perm =list(range(0, env.dim))[::-1] + [env.dim]
+
+    points = np.transpose(env.coord_matrix, perm).reshape(-1, env.dim)
+    vals, mask = evaluate(f, points)
+
+    
+    vals = vals.reshape(env.shape)
+
+    return vals, mask
