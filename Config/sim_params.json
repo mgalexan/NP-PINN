@@ -20,13 +20,13 @@
     },
 
     "L_PL(S/V)_L" : {
-        "normal" : 1.33e-5,
+        "normal" : 5.5606e-5,
         "tumor" : 0.0
     },
 
     "L_P" : {
-        "normal" : 6.13282895e-10,
-        "tumor" : 4.75960855e-9
+        "normal" : 2.79976974e-7,
+        "tumor" : 3.59970395e-8
     },
 
 
@@ -57,7 +57,7 @@
 
     "K_rel" : {
         "normal" : 0,
-        "tumor" : 2.1e-6
+        "tumor" : 2.1e-3
     },
 
     "alpha" : 20,

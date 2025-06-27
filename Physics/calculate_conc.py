@@ -58,7 +58,7 @@ def calculate_concentrations(env: ParamSpace, dt: float, T: float, P_i: fem.func
             bc = fem.dirichletbc(ScalarType(0), dofs, sub)
             bcs.append(bc)
 
-    if boundary_cond == "neumann":
+    elif boundary_cond == "neumann":
         pass        
 
     else:
@@ -70,7 +70,10 @@ def calculate_concentrations(env: ParamSpace, dt: float, T: float, P_i: fem.func
     C, C_n = fem.Function(W), fem.Function(W)
 
     # Split into the three items needed:
-    C_Nn, C_Fn, C_INTn = C_n.split()
+    C_Nn = C_n.sub(0)
+    C_Fn = C_n.sub(1)
+    C_INTn = C_n.sub(2)
+
     
 
     # Trial and Test functions for the weak formulation
@@ -97,7 +100,7 @@ def calculate_concentrations(env: ParamSpace, dt: float, T: float, P_i: fem.func
     Phi_CF = comp_Phi_CF(p, P_i)
     Phi_C = comp_Phi_C(p, P_i)
 
-
+    P_i.x.scatter_forward()
     # Assemble a Bilinear form for solving: 
     a  = (  (1/dt) * C_Nt * w_N
       + p["D_N"] * dot(grad(C_Nt), grad(w_N))
@@ -145,8 +148,7 @@ def calculate_concentrations(env: ParamSpace, dt: float, T: float, P_i: fem.func
     C_N_vals = []
     C_F_vals = []
     C_INT_vals = []
-    C_N, C_F, C_INT = C.split()
-    
+        
   
     for _ in tqdm(range(timesteps)):
 
@@ -155,19 +157,25 @@ def calculate_concentrations(env: ParamSpace, dt: float, T: float, P_i: fem.func
 
         # Update the value of C_P
         C_P.value = C_P_val(t, tau)
+        
 
         # Solve the system
 
 
-        problem.solve()       
-
+        problem.solve()  
+             
         print(f"Step {t:.2f}")
         print("Max C total:", np.max(C.x.array))
         print("Max RHS:", problem.b.norm())
         print("Max matrix A:", problem.A.norm()) 
-
+        
         # Replace the old values of concentrations with the new ones
         C_n.x.array[:] = C.x.array
+        C_n.x.scatter_forward()
+
+        C_N = C.sub(0)
+        C_F = C.sub(1)
+        C_INT = C.sub(2)
 
         # Store results
         C_N_vals.append(C_N.copy())

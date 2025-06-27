@@ -44,33 +44,30 @@ def comp_phi_B(p: dict, P_i):
 def comp_phi_L(p: dict, P_i):
     return p["L_PL(S/V)_L"] * (P_i - p["P_L"])
 
+def safe_Pe_ratio(Pe, eps=1e-6):
+    return (Pe + eps) / (ufl.exp(Pe) - 1.0 + eps)
+
+
+
 def comp_Phi_CF(p: dict, P_i):
-
     phi_B = comp_phi_B(p, P_i)
-
     phi_L = comp_phi_L(p, P_i)
 
-    eps = 1e-8
-
     Pe = phi_B * (1.0 - p["sigma_f"]) / (p["P"] * p["S/V"])
+    ratio = safe_Pe_ratio(Pe)
 
-    Pe_factor =  p["P"] * p["S/V"] * Pe / (ufl.exp(Pe) - 1.0 + eps)
+    Pe_factor = p["P"] * p["S/V"] * ratio
 
     return ufl.max_value(ufl.min_value(Pe_factor + phi_L, 1e3), 0.0)
 
+
 def comp_Phi_C(p: dict, P_i):
-
     phi_B = comp_phi_B(p, P_i)
-
-    eps = 1e-8
     
     Pe = phi_B * (1.0 - p["sigma_f"]) / (p["P"] * p["S/V"])
+    ratio = safe_Pe_ratio(Pe)
 
-    term1 = p["P"] * p["S/V"] * Pe / (ufl.exp(Pe) - 1.0 + eps)
-
-
-    term2 = phi_B * (1.0 - p["sigma_f"]) 
+    term1 = p["P"] * p["S/V"] * ratio
+    term2 = phi_B * (1.0 - p["sigma_f"])
 
     return ufl.max_value(ufl.min_value(term1 + term2, 1e3), 0.0)
-
-

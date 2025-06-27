@@ -90,11 +90,12 @@ class ParamSpace:
         for param in self.param_arrays.keys():
 
             # If the parameter is to be used as a divisor in the equation, the fill value should be 1 to avoid infinited values
+            epsilon = 1e-8 # Small value to pad the denominators
 
             if param in keys_div:
                 fill = 1.0
             else:
-                fill = 0.0
+                fill = epsilon
 
             if self.geometry.dim == 2:
 

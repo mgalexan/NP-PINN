@@ -21,7 +21,7 @@ test = ParamSpace(test_geo)
 
 test.open_params("./Config/sim_params.json")
 
-center1 = np.array([5,0])
+center1 = np.array([5, 0])
 
 test.add_tumor(SphericalTumor(center1, 2))
 
@@ -64,13 +64,26 @@ plt.xlabel("r (cm)")
 plt.ylabel("P (mmHg)")
 plt.title(r"Analytic and Numeric Pressure (Nanoparticle $L_p$)")
 plt.savefig("./Plots/test_fig.png")
-
 '''
-C_N, C_F, C_INT = calculate_concentrations(test, 0.05, 1, P_i, "neumann")
 
-C_N = [evaluate_env(C, test_geo)[0] for C in C_N]
-C_F = [evaluate_env(C, test_geo)[0] for C in C_F]
-C_INT = [evaluate_env(C, test_geo)[0] for C in C_INT]
+C_N, C_F, C_INT = calculate_concentrations(test, 0.1, 36, P_i, "neumann")
+
+C_N = [evaluate_env(C, test_geo)[0] for C in C_N[0::1]]
+C_F = [evaluate_env(C, test_geo)[0] for C in C_F[0::1]]
+C_INT = [evaluate_env(C, test_geo)[0] for C in C_INT[0::1]]
+
+midpoint = 50
+C_N_time = np.array(C_N)[:, midpoint]
+
+tvals = np.linspace(0, 36, 359)
+
+plt.plot(tvals, C_N_time, linewidth= 0.5)
+plt.title(r"Evolution of $C_N$ at tumor center by time")
+plt.xlabel("time (s)")
+plt.ylabel(r"C_N")
+plt.savefig("./Plots/conc_time.png")
+plt.clf()
+
 
 labels = ["C_N", "C_F", "C_INT"]
 C = [C_N, C_F, C_INT]
@@ -80,7 +93,7 @@ for i in range(3):
         vals = C[i][n][50]
         plt.cla()
         line,  = plt.plot(xvals, vals, linewidth = 0.5)
-        plt.title(f"Concentration at time t= {n * 0.05}")
+        plt.title(f"Concentration at time t= {n * 10}")
         plt.xlabel("x (cm)")
         plt.ylabel(labels[i])
         
@@ -93,7 +106,7 @@ for i in range(3):
         return plot_frame(n)
 
     # Create animation: frames = number of timesteps
-    ani = FuncAnimation(fig, update, frames=range(0, len(C_N), 5), blit=False)
+    ani = FuncAnimation(fig, update, frames=range(0, len(C_N), 100), blit=False)
 
     ani.save("./Plots/" + labels[i] +"_animation.mp4", fps=30, dpi=150, extra_args=['-vcodec', 'libx264'])
 
