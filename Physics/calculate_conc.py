@@ -163,12 +163,12 @@ def calculate_concentrations(env: ParamSpace, dt: float, T: float, P_i: fem.func
 
 
         problem.solve()  
-             
+        '''     
         print(f"Step {t:.2f}")
         print("Max C total:", np.max(C.x.array))
         print("Max RHS:", problem.b.norm())
         print("Max matrix A:", problem.A.norm()) 
-        
+        '''
         # Replace the old values of concentrations with the new ones
         C_n.x.array[:] = C.x.array
         C_n.x.scatter_forward()

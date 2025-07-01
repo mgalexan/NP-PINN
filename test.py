@@ -3,7 +3,7 @@ from Environment.env_class import ParamSpace, save_env, load_env
 from Environment.tumors import SphericalTumor
 from Physics.calculate_pressure import calculate_pressure
 from Physics.calculate_conc import calculate_concentrations
-from Util.evaluate_function import evaluate, evaluate_env
+from Util.evaluate_function import evaluate_env
 
 import sys
 import numpy as np
@@ -15,25 +15,25 @@ plt.style.use("ggplot")
 np.set_printoptions(threshold=sys.maxsize)
 
 
-test_geo = GeometrySpace(10, 5, 0, 0.05)
+test_geo = GeometrySpace(10, 0, 0, 0.05)
 
 test = ParamSpace(test_geo)
 
 test.open_params("./Config/sim_params.json")
 
-center1 = np.array([5, 0])
+center1 = np.array([5])
 
-test.add_tumor(SphericalTumor(center1, 2))
+test.add_tumor(SphericalTumor(center1, 6))
 
 P_i = calculate_pressure(test, "neumann")
 
 sim_vals, _ = evaluate_env(P_i, test_geo)
 
-xvals = np.linspace(0, 5, 100)
+xvals = np.linspace(0, 10, 200)
 '''
 p = test.params
 
-R = 3
+R = 5
 alpha_t = R * np.sqrt(p["L_P"]["tumor"] * p["S/V"]["tumor"] / p["kappa"]["tumor"])
 alpha_h = R * np.sqrt(p["L_P"]["normal"] * p["S/V"]["normal"] / p["kappa"]["normal"])
 p_et = p["P_b"] - p["sigma_s"]["tumor"] * (p["pi_b"]["tumor"] - p["pi_i"]["tumor"])
@@ -57,31 +57,31 @@ def p_anal(r):
 #print(alpha_h, alpha_t, p_e, K, p_et)
 
 
-plt.plot(xvals, sim_vals[70, 70], label= "Numerical (FEniCSx)", linewidth=0.5)
-plt.plot(xvals, p_et * p_anal(xvals / R), label= "Analytic", linewidth= 0.5)
+plt.plot(xvals[:100], sim_vals[100:], label= "Numerical (FEniCSx)", linewidth=0.5)
+plt.plot(xvals[:100], p_et * p_anal(xvals[:100] / R), label= "Analytic", linewidth= 0.5)
 plt.legend()
 plt.xlabel("r (cm)")
 plt.ylabel("P (mmHg)")
 plt.title(r"Analytic and Numeric Pressure (Nanoparticle $L_p$)")
-plt.savefig("./Plots/test_fig.png")
+plt.savefig("./Plots/only_tumor_p.png")
+plt.clf()
 '''
+C_N, C_F, C_INT = calculate_concentrations(test, 0.5, 36000, P_i, "neumann")
 
-C_N, C_F, C_INT = calculate_concentrations(test, 0.1, 36, P_i, "neumann")
-
-C_N = [evaluate_env(C, test_geo)[0] for C in C_N[0::1]]
-C_F = [evaluate_env(C, test_geo)[0] for C in C_F[0::1]]
-C_INT = [evaluate_env(C, test_geo)[0] for C in C_INT[0::1]]
+C_N = [evaluate_env(C, test_geo)[0] for C in C_N[0::10]]
+C_F = [evaluate_env(C, test_geo)[0] for C in C_F[0::10]]
+C_INT = [evaluate_env(C, test_geo)[0] for C in C_INT[0::10]]
 
 midpoint = 50
 C_N_time = np.array(C_N)[:, midpoint]
 
-tvals = np.linspace(0, 36, 359)
+tvals = np.linspace(0, 36000, 7200)
 
 plt.plot(tvals, C_N_time, linewidth= 0.5)
 plt.title(r"Evolution of $C_N$ at tumor center by time")
 plt.xlabel("time (s)")
 plt.ylabel(r"C_N")
-plt.savefig("./Plots/conc_time.png")
+plt.savefig("./Plots/conc_time_onlytumorfast.png")
 plt.clf()
 
 
@@ -90,10 +90,10 @@ C = [C_N, C_F, C_INT]
 for i in range(3):
     max_c = np.array(C[i]).max()
     def plot_frame(n):
-        vals = C[i][n][50]
+        vals = C[i][n]
         plt.cla()
         line,  = plt.plot(xvals, vals, linewidth = 0.5)
-        plt.title(f"Concentration at time t= {n * 10}")
+        plt.title(f"Concentration at time t= {n * 5}")
         plt.xlabel("x (cm)")
         plt.ylabel(labels[i])
         
@@ -106,7 +106,7 @@ for i in range(3):
         return plot_frame(n)
 
     # Create animation: frames = number of timesteps
-    ani = FuncAnimation(fig, update, frames=range(0, len(C_N), 100), blit=False)
+    ani = FuncAnimation(fig, update, frames=range(0, len(C_N), 10), blit=False)
 
-    ani.save("./Plots/" + labels[i] +"_animation.mp4", fps=30, dpi=150, extra_args=['-vcodec', 'libx264'])
+    ani.save("./Animations/" + labels[i] +"_animation_onlytumorfast.mp4", fps=30, dpi=150, extra_args=['-vcodec', 'libx264'])
 
