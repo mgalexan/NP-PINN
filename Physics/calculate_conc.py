@@ -7,7 +7,8 @@ from mpi4py import MPI
 from basix.ufl import mixed_element
 from dolfinx.fem.petsc import LinearProblem
 
-from ufl import ds, dx, grad, dot
+from ufl import ds, dx, grad, dot, div
+from ufl import FacetNormal, CellDiameter, sqrt, inner
 from petsc4py.PETSc import ScalarType
 from petsc4py import PETSc
 
@@ -74,7 +75,7 @@ def calculate_concentrations(env: ParamSpace, dt: float, T: float, P_i: fem.func
     C_Fn = C_n.sub(1)
     C_INTn = C_n.sub(2)
 
-    
+    C_N, C_F, C_INT = ufl.split(C)
 
     # Trial and Test functions for the weak formulation
     C_Nt, C_Ft, C_INTt = ufl.TrialFunctions(W)
@@ -87,6 +88,9 @@ def calculate_concentrations(env: ParamSpace, dt: float, T: float, P_i: fem.func
     else:
         print("Error: Unsupported initial conditions")
         return
+
+
+
 
     # Set up the parameters of the equation
     p = env.param_funcs
@@ -101,12 +105,42 @@ def calculate_concentrations(env: ParamSpace, dt: float, T: float, P_i: fem.func
     Phi_C = comp_Phi_C(p, P_i)
 
     P_i.x.scatter_forward()
+
+    # Strong Form Residuals
+
+    R_N = (1/dt) * (C_N - C_Nn) \
+      - div(p["D_N"] * grad(C_N)) \
+      + dot(v_i, grad(C_N)) \
+      - p["K_rel"] * C_N \
+      + Phi_CF * C_N \
+      - Phi_C * C_P
+
+    R_F = (1/dt) * (C_F - C_Fn) \
+        - div(p["D_F"] * grad(C_F)) \
+        + dot(v_i, grad(C_F)) \
+        - (p["K_INT"] + p["K_deg-F"]) * C_F \
+        + p["alpha"] * p["K_rel"] * C_N \
+        + p["K_deg-INT"] * C_INT
+
+    R_INT = (1/dt) * (C_INT - C_INTn) \
+            - p["K_deg-INT"] * C_INT \
+            + p["K_INT"] * C_F
+    
+    h = CellDiameter(msh)
+    v_norm = sqrt(dot(v_i, v_i))
+    eps = fem.Constant(msh, ScalarType(1e-10))  # to avoid divide-by-zero
+    tau_SUPG = h / (2.0 * v_norm + eps)
+
+    SUPG_N = tau_SUPG * dot(v_i, grad(w_N)) * R_N * dx
+    SUPG_F = tau_SUPG * dot(v_i, grad(w_F)) * R_F * dx
+    SUPG_INT = tau_SUPG * dot(v_i, grad(w_INT)) * R_INT * dx
+
     # Assemble a Bilinear form for solving: 
     a  = (  (1/dt) * C_Nt * w_N
       + p["D_N"] * dot(grad(C_Nt), grad(w_N))
       - dot(v_i, grad(w_N)) * C_Nt
       + p["K_rel"] * C_Nt * w_N 
-      - Phi_CF * C_Ft * w_N ) * dx 
+      - Phi_CF * C_Nt * w_N ) * dx 
                
 
     a += (  (1/dt) * C_Ft * w_F
@@ -118,25 +152,36 @@ def calculate_concentrations(env: ParamSpace, dt: float, T: float, P_i: fem.func
 
     a += (  (1/dt) * C_INTt * w_INT
         + p["K_deg-INT"] * C_INTt * w_INT
-        - p["K_INT"] * C_Ft * w_INT ) * dx   
+        - p["K_INT"] * C_Ft * w_INT ) * dx 
+
+    #a += ufl.derivative(SUPG_N + SUPG_F + SUPG_INT, C, ufl.TrialFunction(W))
 
     a = fem.form(a)                                 
 
     # Now for the Linear term:
 
-    L  = ( (1/dt) * C_Nn * w_N
-     + Phi_C * C_P * w_N ) * dx
+    L = ((1/dt) * C_Nn * w_N) * dx
+    
+    L +=  (Phi_C * C_P * w_N ) * dx
 
     L += ( (1/dt) * C_Fn * w_F ) * dx
 
     L += ( (1/dt) * C_INTn * w_INT ) * dx
+
+    #L += SUPG_N + SUPG_F + SUPG_INT
 
     L = fem.form(L)
 
 
 
     # Linear Solver:
-    problem = LinearProblem(a, L, bcs=bcs, u= C, petsc_options={"ksp_type": "gmres", "pc_type": "hypre"})
+    problem = LinearProblem(a, L, bcs=bcs, u= C, petsc_options = {
+    "ksp_type": "gmres",
+    "pc_type": "hypre",
+    "ksp_rtol": 1e-8,
+    "ksp_max_it": 500,
+}
+)
 
 
     # Main time loop:
@@ -148,7 +193,7 @@ def calculate_concentrations(env: ParamSpace, dt: float, T: float, P_i: fem.func
     C_N_vals = []
     C_F_vals = []
     C_INT_vals = []
-        
+       
   
     for _ in tqdm(range(timesteps)):
 
@@ -163,12 +208,12 @@ def calculate_concentrations(env: ParamSpace, dt: float, T: float, P_i: fem.func
 
 
         problem.solve()  
-        '''     
+             
         print(f"Step {t:.2f}")
         print("Max C total:", np.max(C.x.array))
         print("Max RHS:", problem.b.norm())
         print("Max matrix A:", problem.A.norm()) 
-        '''
+        
         # Replace the old values of concentrations with the new ones
         C_n.x.array[:] = C.x.array
         C_n.x.scatter_forward()

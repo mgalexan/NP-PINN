@@ -70,4 +70,5 @@ def comp_Phi_C(p: dict, P_i):
     term1 = p["P"] * p["S/V"] * ratio
     term2 = phi_B * (1.0 - p["sigma_f"])
 
-    return ufl.max_value(ufl.min_value(term1 + term2, 1e3), 0.0)
+    return term1 + term2
+    
