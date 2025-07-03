@@ -58,7 +58,7 @@ def comp_Phi_CF(p: dict, P_i):
 
     Pe_factor = p["P"] * p["S/V"] * ratio
 
-    return ufl.max_value(ufl.min_value(Pe_factor + phi_L, 1e3), 0.0)
+    return Pe_factor + phi_L
 
 
 def comp_Phi_C(p: dict, P_i):

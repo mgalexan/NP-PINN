@@ -116,7 +116,7 @@ class GeometrySpace():
             
 
         self.mesh = msh
-        self.V = fem.functionspace(msh, ("Lagrange", 1))
+        self.V = fem.functionspace(msh, ("CG", 1))
 
 
     

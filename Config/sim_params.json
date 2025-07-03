@@ -71,5 +71,10 @@
 
     "K_deg-F" : 0.1e-5,
 
-    "K_deg-INT": 0.05e-5
+    "K_deg-INT": 0.05e-5,
+
+    "tumor_flag": {
+        "normal" : 0.0,
+        "tumor" : 1.0
+    }
 }

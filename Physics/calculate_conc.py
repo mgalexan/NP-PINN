@@ -45,10 +45,11 @@ def calculate_concentrations(env: ParamSpace, dt: float, T: float, P_i: fem.func
     # Set up boundary conditions
 
     facets = mesh.locate_entities_boundary(
-        msh,
-        dim=(msh.topology.dim - 1),
-        marker=lambda x: np.isclose(x[0], 0.0) | np.isclose(x[0], 2.0),
+    msh,
+    dim=msh.topology.dim - 1,
+    marker=lambda x: np.full(x.shape[1], True)
     )
+
     
     bcs = []
     if boundary_cond == "dirichlet":
@@ -111,7 +112,7 @@ def calculate_concentrations(env: ParamSpace, dt: float, T: float, P_i: fem.func
     R_N = (1/dt) * (C_N - C_Nn) \
       - div(p["D_N"] * grad(C_N)) \
       + dot(v_i, grad(C_N)) \
-      - p["K_rel"] * C_N \
+      + p["K_rel"] * C_N \
       + Phi_CF * C_N \
       - Phi_C * C_P
 
@@ -140,9 +141,8 @@ def calculate_concentrations(env: ParamSpace, dt: float, T: float, P_i: fem.func
       + p["D_N"] * dot(grad(C_Nt), grad(w_N))
       - dot(v_i, grad(w_N)) * C_Nt
       + p["K_rel"] * C_Nt * w_N 
-      - Phi_CF * C_Nt * w_N ) * dx 
+      + Phi_CF * C_Nt * w_N * p["tumor_flag"]) * dx 
                
-
     a += (  (1/dt) * C_Ft * w_F
         + p["D_F"] * dot(grad(C_Ft), grad(w_F))
         - dot(v_i, grad(w_F)) * C_Ft
@@ -153,7 +153,7 @@ def calculate_concentrations(env: ParamSpace, dt: float, T: float, P_i: fem.func
     a += (  (1/dt) * C_INTt * w_INT
         + p["K_deg-INT"] * C_INTt * w_INT
         - p["K_INT"] * C_Ft * w_INT ) * dx 
-
+    
     #a += ufl.derivative(SUPG_N + SUPG_F + SUPG_INT, C, ufl.TrialFunction(W))
 
     a = fem.form(a)                                 
@@ -162,7 +162,7 @@ def calculate_concentrations(env: ParamSpace, dt: float, T: float, P_i: fem.func
 
     L = ((1/dt) * C_Nn * w_N) * dx
     
-    L +=  (Phi_C * C_P * w_N ) * dx
+    L +=  (Phi_C * C_P * w_N * p["tumor_flag"]) * dx
 
     L += ( (1/dt) * C_Fn * w_F ) * dx
 
@@ -176,10 +176,11 @@ def calculate_concentrations(env: ParamSpace, dt: float, T: float, P_i: fem.func
 
     # Linear Solver:
     problem = LinearProblem(a, L, bcs=bcs, u= C, petsc_options = {
-    "ksp_type": "gmres",
+    "ksp_type": "cg",
     "pc_type": "hypre",
     "ksp_rtol": 1e-8,
     "ksp_max_it": 500,
+    #"ksp_monitor": None
 }
 )
 
@@ -208,11 +209,6 @@ def calculate_concentrations(env: ParamSpace, dt: float, T: float, P_i: fem.func
 
 
         problem.solve()  
-             
-        print(f"Step {t:.2f}")
-        print("Max C total:", np.max(C.x.array))
-        print("Max RHS:", problem.b.norm())
-        print("Max matrix A:", problem.A.norm()) 
         
         # Replace the old values of concentrations with the new ones
         C_n.x.array[:] = C.x.array
@@ -226,7 +222,14 @@ def calculate_concentrations(env: ParamSpace, dt: float, T: float, P_i: fem.func
         C_N_vals.append(C_N.copy())
         C_F_vals.append(C_F.copy())
         C_INT_vals.append(C_INT.copy())
-
+        '''
+        print(f"Step {t:.2f}")
+        print("Max C_N:", np.max(C_N.x.array))
+        print("Max C_F:", np.max(C_F.x.array))
+        print("Max C_INT:", np.max(C_INT.x.array))
+        print("Max RHS:", problem.b.norm())
+        print("Max matrix A:", problem.A.norm()) 
+        '''
 
     
 

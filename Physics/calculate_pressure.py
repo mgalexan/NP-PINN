@@ -49,13 +49,14 @@ def calculate_pressure(space: ParamSpace, boundary_cond: str) -> fem.function.Fu
 
 
     # Set up boundary conditions
-    bcs = []
+    
 
     if boundary_cond == "dirichlet":
         bc = fem.dirichletbc(ScalarType(0), dofs, V)
         bcs = [bc]
     elif boundary_cond == "neumann":
-        pass
+        bcs = []  
+
     else:
         print("Error: Unsupported boundary condition")
         return
@@ -73,6 +74,6 @@ def calculate_pressure(space: ParamSpace, boundary_cond: str) -> fem.function.Fu
     L = constant * v * dx
 
     # Solve the problem!
-    problem = LinearProblem(a, L, bcs, petsc_options={"ksp_type": "preonly", "pc_type": "lu"})
+    problem = LinearProblem(a, L, bcs, petsc_options={"ksp_type": "cg", "pc_type": "hypre"})
     uh = problem.solve()
     return uh

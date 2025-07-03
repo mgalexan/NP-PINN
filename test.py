@@ -15,21 +15,26 @@ plt.style.use("ggplot")
 np.set_printoptions(threshold=sys.maxsize)
 
 
-test_geo = GeometrySpace(10, 10, 0, 0.1)
+test_geo = GeometrySpace(10, 10, 0, 0.05)
 
 test = ParamSpace(test_geo)
 
 test.open_params("./Config/sim_params.json")
 
-center1 = np.array([10, 10])
+center1 = np.array([5, 5])
 
-test.add_tumor(SphericalTumor(center1, 20))
+test.add_tumor(SphericalTumor(center1, 4.5))
 
 P_i = calculate_pressure(test, "neumann")
 
 sim_vals, _ = evaluate_env(P_i, test_geo)
 
-xvals = np.linspace(0, 10, 100)
+xvals = np.linspace(0, 10, 200)
+
+fig = plt.imshow(sim_vals)
+plt.colorbar(fig)
+plt.savefig("./Plots/test_fig.png")
+plt.clf()
 '''
 p = test.params
 
@@ -66,17 +71,18 @@ plt.title(r"Analytic and Numeric Pressure (Nanoparticle $L_p$)")
 plt.savefig("./Plots/only_tumor_p.png")
 plt.clf()
 '''
-C_N, C_F, C_INT = calculate_concentrations(test, 0.5, 36000, P_i, "neumann")
 
-C_N = [evaluate_env(C, test_geo)[0] for C in C_N[0::10]]
-C_F = [evaluate_env(C, test_geo)[0] for C in C_F[0::10]]
-C_INT = [evaluate_env(C, test_geo)[0] for C in C_INT[0::10]]
+C_N, C_F, C_INT = calculate_concentrations(test, 0.5, 3000, P_i, "neumann")
+
+C_N = [evaluate_env(C, test_geo)[0] for C in C_N[0::100]]
+C_F = [evaluate_env(C, test_geo)[0] for C in C_F[0::100]]
+C_INT = [evaluate_env(C, test_geo)[0] for C in C_INT[0::100]]
 
 
 midpoint = 50
 C_N_time = np.array(C_N)[:, midpoint, midpoint]
 
-tvals = np.linspace(0, 36000, 7200)
+tvals = np.linspace(0, 3000, 60)
 
 plt.plot(tvals, C_N_time, linewidth= 0.5)
 plt.title(r"Evolution of $C_N$ at tumor center by time")
@@ -85,19 +91,24 @@ plt.ylabel(r"C_N")
 plt.savefig("./Plots/conc_time_test.png")
 plt.clf()
 
-
 labels = ["C_N", "C_F", "C_INT"]
+labels_tex = [r"$C_N$", r"$C_F$", r"$C_{INT}$"]
 C = [C_N, C_F, C_INT]
 for i in range(3):
     max_c = np.array(C[i]).max()
     def plot_frame(n):
-        vals = C[i][n][midpoint]
-        plt.cla()
-        line,  = plt.plot(xvals, vals, linewidth = 0.5)
+        vals = C[i][n]
+        plt.clf()
+        line  = plt.imshow(C[i][n], vmin=0, vmax=max_c)
+        plt.xticks(range(0,200,20), range(10))
+        plt.yticks(range(0,200,20), range(10))
+        plt.xlabel
         plt.title(f"Concentration at time t= {n * 5}")
+        plt.colorbar(line, label= labels_tex[i])
         plt.xlabel("x (cm)")
-        plt.ylim((0, max_c))
-        plt.ylabel(labels[i])
+        plt.ylabel("y (cm)")
+        #plt.ylim((0, max_c))
+        #plt.ylabel(labels[i])
         
 
     fig, ax = plt.subplots()
@@ -108,7 +119,7 @@ for i in range(3):
         return plot_frame(n)
 
     # Create animation: frames = number of timesteps
-    ani = FuncAnimation(fig, update, frames=range(0, len(C_N), 10), blit=False)
+    ani = FuncAnimation(fig, update, frames=range(0, len(C_N), 1), blit=False)
 
     ani.save("./Animations/" + labels[i] +"_animation_test.mp4", fps=30, dpi=150, extra_args=['-vcodec', 'libx264'])
 
