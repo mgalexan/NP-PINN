@@ -18,9 +18,9 @@ class GeometrySpace():
         self.ds = ds
 
         # Determine the shape of the computational domain
-        self.shape_x = int(width // ds + 1)
-        self.shape_y = int(height // ds + 1)
-        self.shape_z = int(depth  // ds + 1)
+        self.shape_x = int(width / ds + 1)
+        self.shape_y = int(height / ds + 1)
+        self.shape_z = int(depth  / ds + 1)
         self.coord_matrix = None
         self.mesh = None
         self.V = None
@@ -93,7 +93,7 @@ class GeometrySpace():
                 comm=MPI.COMM_WORLD,
                 points=((0.0, 0.0), (self.width, self.height)),
                 n=(self.shape_x, self.shape_y),
-                cell_type=mesh.CellType.triangle,
+                cell_type=mesh.CellType.quadrilateral,
             )
         
         elif self.dim == 1:

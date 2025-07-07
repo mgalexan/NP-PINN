@@ -16,3 +16,5 @@ Physics/__pycache__/equations.cpython-311.pyc
 Physics/__pycache__/calculate_conc.cpython-311.pyc
 Util/__pycache__/evaluate_function.cpython-311.pyc
 Util/__pycache__/evaluate_function.cpython-311.pyc
+output.log
+Util/__pycache__/interpreter.cpython-311.pyc

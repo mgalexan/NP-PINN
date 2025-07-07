@@ -9,10 +9,10 @@ class Tumor:
 
 class SphericalTumor(Tumor):
     """ Spherically shaped tumors """
-    def __init__(self, center: np.ndarray, r: float):
+    def __init__(self, center, r: float):
         super().__init__()
         self.center = center
-        self.r = r
+        self.r = np.array(r)
 
     def apply_tumor(self, geo: GeometrySpace) -> np.ndarray:
         if not(isinstance(geo.coord_matrix, np.ndarray)):

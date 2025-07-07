@@ -56,7 +56,7 @@ def comp_Phi_CF(p: dict, P_i):
     Pe = phi_B * (1.0 - p["sigma_f"]) / (p["P"] * p["S/V"])
     ratio = safe_Pe_ratio(Pe)
 
-    Pe_factor = p["P"] * p["S/V"] * ratio
+    Pe_factor = p["P"] * p["S/V"] * ratio * p["tumor_flag"]
 
     return Pe_factor + phi_L
 
@@ -70,5 +70,26 @@ def comp_Phi_C(p: dict, P_i):
     term1 = p["P"] * p["S/V"] * ratio
     term2 = phi_B * (1.0 - p["sigma_f"])
 
-    return term1 + term2
+    return p["tumor_flag"] * (term1 + term2)
     
+
+
+def p_anal(r, p, R):
+
+    alpha_t = R * np.sqrt(p["L_P"]["tumor"] * p["S/V"]["tumor"] / p["kappa"]["tumor"])
+    alpha_h = R * np.sqrt(p["L_P"]["normal"] * p["S/V"]["normal"] / p["kappa"]["normal"])
+    p_et = p["P_b"] - p["sigma_s"]["tumor"] * (p["pi_b"]["tumor"] - p["pi_i"]["tumor"])
+    p_eh = p["P_b"] - p["sigma_s"]["normal"] * (p["pi_b"]["normal"] - p["pi_i"]["normal"])
+    p_e = p_eh/p_et
+
+    K = p["kappa"]["tumor"] / p["kappa"]["normal"]
+
+    phi = (1 + alpha_h) * np.sinh(alpha_t)
+    theta = K * (alpha_t * np.sinh(alpha_h) - np.sinh(alpha_h))
+
+    P_i = np.empty(r.shape)
+    
+
+    P_i[np.where(r <= 1)] = 1 - (1 - p_e) * (alpha_h + 1) * np.sinh(alpha_t * r[np.where(r <= 1)]) / (r[np.where(r <= 1)] * (theta + phi))
+    P_i[np.where(r > 1)] = p_e + (1 - p_e) * theta * np.exp(-alpha_h * (r[np.where(r > 1)] - 1)) / (r[np.where(r > 1)] * (theta + phi))
+    return p_et * P_i

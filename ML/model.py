@@ -66,7 +66,7 @@ class BackwardPINN(nn.Module):
         
         res = self.network(x)
 
-        return x
+        return res(x)
 
 
             
