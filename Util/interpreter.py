@@ -1,9 +1,12 @@
 from dolfinx import fem
 import numpy as np
+import pandas as pd
 from Environment.env_class import ParamSpace
 from Physics.equations import p_anal
 from Environment.geometry import GeometrySpace
 from Util.evaluate_function import evaluate_env
+from torch import from_numpy, save
+from mpi4py import MPI
 
 import matplotlib.pyplot as plt
 import matplotlib
@@ -13,7 +16,10 @@ plt.style.use("ggplot")
 
 class Interpreter():
 
-    def __init__(self, env: ParamSpace, C: tuple, P_i: fem.Function, dt: float, T: float, sample_rate = 100):
+    def __init__(self, env: ParamSpace, C: tuple, P_i: fem.Function, sample_rate = 100):
+
+        self.comm = MPI.COMM_WORLD
+        self.rank = self.comm.Get_rank()
 
         self.env = env
         self.geometry = env.geometry
@@ -25,7 +31,10 @@ class Interpreter():
 
         self.midpoint = self.geometry.shape_x // 2
 
-        self.tvals = np.linspace(0, T, len(self.C_N_vals))
+        self.T = env.geometry.T
+        self.dt = env.geometry.dt
+
+        self.tvals = np.linspace(0, self.T, len(self.C_N_vals))
         self.xvals = np.linspace(0, self.geometry.width, self.geometry.shape_x)
         self.yvals = np.linspace(0, self.geometry.height, self.geometry.shape_y)
         
@@ -38,9 +47,9 @@ class Interpreter():
         width_idx = int(width / self.geometry.ds)
 
         if self.dim == 1:
-            self.P_i_val = self.P_i_val[idx_center[0] - width_idx[0]:idx_center[0] + width_idx[0] + 1]
+            self.P_i_val = self.P_i_val[idx_center[0] - width_idx:idx_center[0] + width_idx + 1]
             for i in range(3):
-                self.C_vals[i] = [C[idx_center[0] - width_idx[0]:idx_center[0] + width_idx[0] + 1] for C in self.C_vals[i]]
+                self.C_vals[i] = [C[idx_center[0] - width_idx:idx_center[0] + width_idx + 1] for C in self.C_vals[i]]
             self.C_N_vals = self.C_vals[0]
             self.C_F_vals = self.C_vals[1]
             self.C_INT_vals = self.C_vals[2]
@@ -72,11 +81,89 @@ class Interpreter():
         self.C_F_vals = [evaluate_env(C, self.geometry)[0] for C in self.C_F]
         self.C_INT_vals = [evaluate_env(C, self.geometry)[0] for C in self.C_INT]
         self.C_vals = [self.C_N_vals, self.C_F_vals, self.C_INT_vals]
+        
     
+    def assemble_matrix(self):
+        self.C_N_mat = np.array(self.C_N_vals)
+        self.C_F_mat = np.array(self.C_F_vals)
+        self.C_INT_mat = np.array(self.C_INT_vals)
+        if self.dim == 1:
+            self.tt, self.xx = np.meshgrid(self.tvals, self.xvals, indexing="ij")
+        elif self.dim == 2:
+            self.tt, self.xx, self.yy = np.meshgrid(self.tvals, self.xvals, self.yvals, indexing="ij")
+
+    def save_matrix(self, save_ext):
+        self.assemble_matrix()
+
+        np.save("./Data/" + save_ext + "_C_N.npy", self.C_N_mat)
+        np.save("./Data/" + save_ext + "_C_F.npy", self.C_F_mat)
+        np.save("./Data/" + save_ext + "_C_INT.npy", self.C_INT_mat)
+
+        np.save("./Data/" + save_ext + "_tt.npy", self.tt)
+        np.save("./Data/" + save_ext + "_xx.npy", self.xx)
+
+        if self.dim > 1:
+            np.save("./Data/" + save_ext + "_yy.npy", self.yy)
+
+
+
+    def save_vals(self, save_ext, method = "full"):
+        self.assemble_matrix()
+
+        if method == "full":
+            if self.dim == 1:
+                df_dict = {
+                    "t" : self.tt.flatten(),
+                    "x" : self.xx.flatten(),
+                    "C_N" : self.C_N_mat.flatten(),
+                    "C_F" : self.C_F_mat.flatten(),
+                    "C_INT" : self.C_INT_mat.flatten()
+                }
+            elif self.dim == 2:
+                df_dict = {
+                    "t" : self.tt.flatten(),
+                    "x" : self.xx.flatten(),
+                    "y" : self.yy.flatten(),
+                    "C_N" : self.C_N_mat.flatten(),
+                    "C_F" : self.C_F_mat.flatten(),
+                    "C_INT" : self.C_INT_mat.flatten()
+                }
+
+            df = pd.DataFrame(df_dict)
+
+            df.to_csv("./Data/" + save_ext + "_data.csv")
+    
+    def save_tensor(self, save_ext):
+        self.assemble_matrix()
+
+        if self.dim == 1:
+            "TODO"
+            pass
+        elif self.dim == 2:
+            C_N_vec = self.C_N_mat.flatten().reshape(-1, 1)
+            C_F_vec = self.C_F_mat.flatten().reshape(-1, 1)
+            C_INT_vec = self.C_INT_mat.flatten().reshape(-1, 1)
+
+            C_vec = np.concatenate([C_N_vec, C_F_vec, C_INT_vec], axis = 1)
+            C_t = from_numpy(C_vec).float()
+
+            save(C_t, "./Data/Torch/" + save_ext + "_torchconc.pt")
+
+            xx_vec = self.xx.flatten().reshape(-1, 1)
+            yy_vec = self.yy.flatten().reshape(-1, 1)
+            tt_vec = self.tt.flatten().reshape(-1, 1)
+
+            coord_vec = np.concatenate([tt_vec, xx_vec, yy_vec], axis = 1)
+            coord_t = from_numpy(coord_vec).float()
+
+            save(coord_t, "./Data/Torch/" + save_ext + "_torchcoord.pt")
+
+        
+
     def pressure_plot(self, save_ext: str):
         
         if self.dim == 1:
-            plt.plot(self.xvals, self.P_i_val)
+            plt.plot(self.xvals, self.P_i_val, linewidth= 0.5)
             plt.xlabel("x (cm)")
             plt.ylabel(r"$P_i$ (mmHg)")
         
@@ -134,9 +221,33 @@ class Interpreter():
         plt.clf()
 
     def line_animation(self, save_ext: str):
-        pass
 
-    def image_animation(self, save_ext: str, dt, fps = 30, rate= 1):
+        for i in range(3):
+            max_c = np.array(self.C_vals[i]).max()
+
+            def plot_frame(n):
+                plt.clf()
+                line,  = plt.plot(self.xvals, self.C_vals[i][n], linewidth =0.5)
+                plt.ylim(0, max_c)
+                plt.title(f"Concentration at time t= {n * self.dt * self.sample_rate}")
+                plt.xlabel("x (cm)")
+                plt.ylabel(self.labels_tex[i])
+   
+            fig, ax = plt.subplots()
+
+            # Wrapper for animation: clears and re-plots each frame
+            def update(n):
+                ax.clear()
+                return plot_frame(n)
+
+            # Create animation: frames = number of timesteps
+            ani = FuncAnimation(fig, update, frames=range(0, len(self.C_N_vals), 1), blit=False)
+
+            ani.save("./Animations/"+ save_ext +"_animation_" +  self.labels[i] + ".mp4", fps=30, dpi=150, extra_args=['-vcodec', 'libx264'])
+        
+        plt.clf()
+
+    def image_animation(self, save_ext: str, fps = 30, rate= 1):
         
         tickstep = 1 / self.geometry.ds
         x_ticks = np.arange(0, self.P_i_val.shape[0], tickstep)
@@ -153,7 +264,7 @@ class Interpreter():
                 fig  = plt.imshow(self.C_vals[i][n], vmin= 0, vmax= max_c)
                 plt.xticks(x_ticks, x_tick_labels)
                 plt.yticks(y_ticks, y_tick_labels)
-                plt.title(f"Concentration at time t= {n * dt * self.sample_rate}")
+                plt.title(f"Concentration at time t= {n * self.dt * self.sample_rate}")
                 plt.colorbar(fig, label= self.labels_tex[i])
                 plt.xlabel("x (cm)")
                 plt.ylabel("y (cm)")

@@ -1,6 +1,7 @@
 import torch as t
 import torch.nn as nn
 import torch.functional as F
+
 import numpy as np
 
 import json
@@ -14,6 +15,9 @@ class MLParams():
     def __init__(self, ext: str):
         with open(path.join(ext)) as f:
             self.params = json.load(f)
+    
+    def __getitem__(self, key):
+        return self.params[key]
 
 
 class BackwardPINN(nn.Module):
@@ -23,12 +27,13 @@ class BackwardPINN(nn.Module):
         super().__init__()
 
         self.env = env
-        self.params = param_obj.params
+        self.params = param_obj
 
         self.network = self.make_layers()
-        
 
-
+        self.xscale = 1 / self.env.geometry.width
+        self.yscale = 1 / self.env.geometry.height
+        self.tscale = 1 / self.env.geometry.T     
 
 
     def make_layers(self) -> nn.Sequential:
@@ -55,18 +60,33 @@ class BackwardPINN(nn.Module):
         for _ in range(self.num_hidden):
             hidden_layers += [nn.Linear(self.size_hidden, self.size_hidden), self.act()]
 
-        all_layers = [in_layer] + hidden_layers + [hidden_layers]
+        all_layers = [in_layer] + hidden_layers + [out_layer]
 
-        return nn.Sequential(all_layers)
+        net = nn.Sequential(*all_layers)
+
+        def initialize_layer(m):
+            if isinstance(m, nn.Linear):
+                nn.init.xavier_uniform(m.weight)
+                m.bias.data.fill_(0.01)
+
+        net.apply(initialize_layer)
+
+
+        return net
 
 
 
 
     def forward(self, x: t.Tensor) -> t.Tensor:
-        
-        res = self.network(x)
 
-        return res(x)
+        y = t.ones_like(x)
+        y[:, 0] = self.tscale * x[:,0]
+        y[:, 1] = self.xscale * x[:,1]
+        y[:, 2] = self.yscale * x[:,2]
+
+        res = self.network(y)
+
+        return res
 
 
             

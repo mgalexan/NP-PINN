@@ -1,38 +1,22 @@
+from ML.data_processing import get_loaders
+from ML.model import MLParams, BackwardPINN
+from ML.train import train_model
 from Environment.geometry import GeometrySpace
 from Environment.env_class import ParamSpace
-from Environment.tumors import SphericalTumor
-from Physics.calculate_pressure import calculate_pressure
-from Physics.calculate_conc import calculate_concentrations
-from Util.interpreter import Interpreter
+from ML.plot_model import model_implot
 
-name = "test"
+geo = GeometrySpace(4, 4, 0, 0.1, 5, 300)
+env = ParamSpace(geo)
 
-test_geo = GeometrySpace(7, 7, 0, 0.125)
+p = MLParams("./Config/ml_params.json")
 
-test = ParamSpace(test_geo)
+train_loader, test_loader = get_loaders(["test2"], p, 0.1)
+print(len(train_loader.dataset))
 
-test.open_params("./Config/sim_params.json")
+model = BackwardPINN(env, p)
 
-test.add_tumor(SphericalTumor([3.5, 3.5], 1.5))
+train_model(model, p, train_loader)
 
-print("Computing Pressure...", flush=True)
-P_i = calculate_pressure(test, "neumann")
-print("Done!", flush=True)
+model_implot(model, "test2", 0, "test_start")
+model_implot(model, "test2", 299, "test_end")
 
-dt, T = 0.05, 9000
-print("Computing Concentrations...", flush=True)
-C = calculate_concentrations(test, dt, T, P_i, "neumann")
-print("Done!", flush=True)
-
-print("Interpreting Results...", flush=True)
-interp = Interpreter(test, C, P_i, dt, T)
-print("Done!", flush=True)
-
-interp.crop([3.5, 3.5], 2)
-print("Making Plots...", flush=True)
-
-interp.time_center_plots(name)
-interp.pressure_plot(name)
-interp.image_animation(name, dt)
-
-print("Done!", flush=True)

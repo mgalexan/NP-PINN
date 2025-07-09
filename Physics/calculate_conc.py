@@ -22,7 +22,7 @@ import sys
 
 
 
-def calculate_concentrations(env: ParamSpace, dt: float, T: float, P_i: fem.function.Function, boundary_cond : str = "dirichlet", initial: str = "zero", sample_rate = 100) -> fem.function.Function:
+def calculate_concentrations(env: ParamSpace, P_i: fem.function.Function, boundary_cond : str = "dirichlet", initial: str = "zero", sample_rate = 100, verbose= True) -> fem.function.Function:
     """ Full simulation of the forward problem of drug concentrations over time """
 
     if not(isinstance(env.tumor_locs, np.ndarray)):
@@ -95,6 +95,9 @@ def calculate_concentrations(env: ParamSpace, dt: float, T: float, P_i: fem.func
 
 
     # Set up the parameters of the equation
+    T = env.geometry.T
+    dt = env.geometry.dt
+
     p = env.param_funcs
 
     tau = env.params["tau"]
@@ -153,6 +156,7 @@ def calculate_concentrations(env: ParamSpace, dt: float, T: float, P_i: fem.func
     # Main time loop:
 
     timesteps = int(T / dt)
+    percent_mark = timesteps // 20
 
     t = 0
 
@@ -160,11 +164,12 @@ def calculate_concentrations(env: ParamSpace, dt: float, T: float, P_i: fem.func
     C_F_vals = []
     C_INT_vals = []
        
-    is_terminal = True
+    
 
-    for i in tqdm(range(timesteps), disable=not is_terminal):
+    for i in tqdm(range(timesteps), disable=not verbose):
         
-
+        if not(verbose or i % percent_mark):
+            print(f"Progress {100 * i / timesteps}%", flush= True)
         # Tick time fowards
         t += dt
 

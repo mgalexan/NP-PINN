@@ -102,12 +102,12 @@ class ParamSpace:
                 x_coords = self.geometry.coord_matrix[0,:,0]
                 y_coords = self.geometry.coord_matrix[:,0,1]
 
-                interp = RegularGridInterpolator((x_coords, y_coords), self.param_arrays[param], bounds_error=False, fill_value= fill)
+                interp = RegularGridInterpolator((x_coords, y_coords), self.param_arrays[param], "cubic", bounds_error=False, fill_value= fill)
 
             elif self.geometry.dim == 1:
                 x_coords = self.geometry.coord_matrix[:,0]
 
-                interp = RegularGridInterpolator([x_coords], self.param_arrays[param], bounds_error=False, fill_value= fill)
+                interp = RegularGridInterpolator([x_coords], self.param_arrays[param], "cubic", bounds_error=False, fill_value= fill)
 
 
             else:
@@ -115,7 +115,7 @@ class ParamSpace:
                 y_coords = self.geometry.coord_matrix[0,:,0,1]
                 z_coords = self.geometry.coord_matrix[:,0,0,2]
 
-                interp = RegularGridInterpolator((x_coords, y_coords, z_coords), self.param_arrays[param], bounds_error=False, fill_value= fill)
+                interp = RegularGridInterpolator((x_coords, y_coords, z_coords), self.param_arrays[param], "cubic", bounds_error=False, fill_value= fill)
 
             
             func = fem.Function(V)

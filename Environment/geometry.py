@@ -10,12 +10,14 @@ class GeometrySpace():
     """
     Geometric computational domain
     """
-    def __init__(self, width : float, height : float, depth : float, ds: float) -> None:
+    def __init__(self, width : float, height : float, depth : float, ds: float, dt: float, T: float) -> None:
 
         self.width = width
         self.height = height
         self.depth = depth
         self.ds = ds
+        self.T = T
+        self.dt = dt
 
         # Determine the shape of the computational domain
         self.shape_x = int(width / ds + 1)
