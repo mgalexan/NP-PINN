@@ -10,9 +10,12 @@ def model_implot(model: BackwardPINN, name, time: float, save_ext):
     xx = np.load("./Data/" + name + "_xx.npy")
     yy = np.load("./Data/" + name + "_yy.npy")
 
+    C_N_anal = np.load("./Data/" + name + "_C_N.npy")
+    C_F_anal = np.load("./Data/" + name + "_C_F.npy")
+    C_F_anal = np.load("./Data/" + name + "_C_F.npy")
+
     coords = np.stack([tt.flatten(), xx.flatten(), yy.flatten()], axis = -1)
     coords = t.from_numpy(coords).float()
-    print(coords)
     preds = model(coords)
 
     C_N_preds = preds[:,0]
@@ -32,23 +35,39 @@ def model_implot(model: BackwardPINN, name, time: float, save_ext):
     x_tick_labels = range(len(x_ticks))
     y_tick_labels = range(len(y_ticks))
 
-    fig, ax = plt.subplots(1, 3, figsize = (6.4, 2.8))
+    fig, ax = plt.subplots(2, 3, figsize = (9, 5))
 
-    ax[0].imshow(C_N_preds_arr[time_idx], vmin= 0, vmax = cmax)
-    ax[0].set_title(r"$C_N$")
-    ax[0].set_xticks(x_ticks, x_tick_labels)
-    ax[0].set_yticks(y_ticks, y_tick_labels)
-    ax[1].imshow(C_F_preds_arr[time_idx], vmin= 0, vmax = cmax)
-    ax[1].set_title(r"$C_F$")
-    ax[1].set_xticks(x_ticks, x_tick_labels)
-    ax[1].set_yticks(y_ticks, y_tick_labels)
-    img = ax[2].imshow(C_INT_preds_arr[time_idx], vmin= 0, vmax = cmax)
-    ax[2].set_title(r"$C_{INT}$")
-    ax[2].set_xticks(x_ticks, x_tick_labels)
-    ax[2].set_yticks(y_ticks, y_tick_labels)
+    ax[0,0].imshow(C_N_preds_arr[time_idx], vmin= 0, vmax = cmax)
+    ax[0,0].set_title(r"$C_N$")
+    ax[0,0].set_xticks(x_ticks, x_tick_labels)
+    ax[0,0].set_yticks(y_ticks, y_tick_labels)
+
+    ax[1,0].imshow(C_N_anal[time_idx], vmin= 0, vmax = cmax)
+    ax[1,0].set_xticks(x_ticks, x_tick_labels)
+    ax[1,0].set_yticks(y_ticks, y_tick_labels)
+
+    ax[0,1].imshow(C_F_preds_arr[time_idx], vmin= 0, vmax = cmax)
+    ax[0,1].set_title(r"$C_F$")
+    ax[0,1].set_xticks(x_ticks, x_tick_labels)
+    ax[0,1].set_yticks(y_ticks, y_tick_labels)
+
+    ax[1,1].imshow(C_F_anal[time_idx], vmin= 0, vmax = cmax)
+    ax[1,1].set_xticks(x_ticks, x_tick_labels)
+    ax[1,1].set_yticks(y_ticks, y_tick_labels)
+
+
+    img = ax[0,2].imshow(C_INT_preds_arr[time_idx], vmin= 0, vmax = cmax)
+    ax[0,2].set_title(r"$C_{INT}$")
+    ax[0,2].set_xticks(x_ticks, x_tick_labels)
+    ax[0,2].set_yticks(y_ticks, y_tick_labels)
+
+    ax[1,2].imshow(C_INT_preds_arr[time_idx], vmin= 0, vmax = cmax)
+    ax[1,2].set_xticks(x_ticks, x_tick_labels)
+    ax[1,2].set_yticks(y_ticks, y_tick_labels)
+
     cbar = fig.colorbar(img, ax=ax, orientation='vertical', shrink=0.8)
     cbar.set_label("Concentration")
-    fig.suptitle(f"Model Predicted Concentrations at t= {time}")
+    fig.suptitle(f"Numerical and Model Predicted Concentrations at t= {time}")
     
 
     fig.savefig("./Plots/" + save_ext + "_modelpreds.png")

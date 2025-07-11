@@ -13,14 +13,14 @@ from Environment.env_class import ParamSpace
 def calculate_pressure(space: ParamSpace, boundary_cond: str) -> fem.function.Function:
     """ Compute the pressure and velocity gradients within a ParamSpace geometry """
         
+    if not(space.geometry.mesh):
+        space.geometry.get_mesh()
+    
     if not(isinstance(space.tumor_locs, np.ndarray)):
         space.compile_tumors()
     
     if not(space.param_arrays):
         space.get_param_arrays()
-
-    if not(space.geometry.mesh):
-        space.geometry.get_mesh()
 
     if not(space.param_funcs):
         space.get_fenics_functions()

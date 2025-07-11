@@ -1,0 +1,80 @@
+{
+    "pi_b":  {
+        "normal" : 20,
+        "tumor" : 20
+    },
+
+    "pi_i" : {
+        "normal" : 10,
+        "tumor" : 15
+    },
+
+    "sigma_s": {
+        "normal" : 0.91,
+        "tumor" : 0.82
+    },
+
+    "S/V" : {
+        "normal" : 70,
+        "tumor" : 200
+    },
+
+    "L_PL(S/V)_L" : {
+        "normal" : 5.5606e-5,
+        "tumor" : 0.0
+    },
+
+    "L_P" : {
+        "normal" : 6.13282895e-10,
+        "tumor" : 4.75960855e-9
+    },
+
+
+    "kappa" : {
+        "normal" : 8.53e-9,
+        "tumor" : 4.13e-8
+    },
+
+    "P_b" : 15.6,
+
+    "P_L" : 0.0,
+
+
+    
+    "tau" : 79200.0, 
+
+    "P" : {
+        "normal" : 4.6e-8,
+        "tumor" : 2.02e-8
+    },
+
+    "D_N" : {
+        "normal" : 7e-8,
+        "tumor" : 4.52e-8
+    },
+
+    "sigma_f" : 0.043,
+
+    "K_rel" : {
+        "normal" : 0.0,
+        "tumor" : 2.1e-4
+    },
+
+    "alpha" : 20,
+
+    "D_F" : {
+        "normal" : 1.58e-6,
+        "tumor" : 3.4e-6
+    }, 
+
+    "K_INT" : 5e-5,
+
+    "K_deg-F" : 0.1e-5,
+
+    "K_deg-INT": 0.05e-5,
+
+    "tumor_flag": {
+        "normal" : 0.0,
+        "tumor" : 1.0
+    }
+}

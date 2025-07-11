@@ -25,8 +25,8 @@
     },
 
     "L_P" : {
-        "normal" : 2.79976974e-7,
-        "tumor" : 3.59970395e-8
+        "normal" : 2.8e-7,
+        "tumor" : 3.6e-8
     },
 
 
@@ -71,10 +71,5 @@
 
     "K_deg-F" : 0.1e-5,
 
-    "K_deg-INT": 0.05e-5,
-
-    "tumor_flag": {
-        "normal" : 0.0,
-        "tumor" : 1.0
-    }
+    "K_deg-INT": 0.05e-5
 }

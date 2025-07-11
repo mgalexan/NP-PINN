@@ -8,7 +8,7 @@ from mpi4py import MPI
 from basix.ufl import mixed_element
 from dolfinx.fem.petsc import LinearProblem
 
-from ufl import ds, dx, grad, dot, div
+from ufl import ds, dx, avg, jump, dot, grad, FacetNormal, CellDiameter
 from ufl import FacetNormal, CellDiameter, sqrt, inner
 from petsc4py.PETSc import ScalarType
 from petsc4py import PETSc
@@ -25,14 +25,15 @@ import sys
 def calculate_concentrations(env: ParamSpace, P_i: fem.function.Function, boundary_cond : str = "dirichlet", initial: str = "zero", sample_rate = 100, verbose= True) -> fem.function.Function:
     """ Full simulation of the forward problem of drug concentrations over time """
 
+    if not(env.geometry.mesh):
+        env.geometry.get_mesh()
+
     if not(isinstance(env.tumor_locs, np.ndarray)):
         env.compile_tumors()
     
     if not(env.param_arrays):
         env.get_param_arrays()
 
-    if not(env.geometry.mesh):
-        env.geometry.get_mesh()
 
     if not(env.param_funcs):
         env.get_fenics_functions()
@@ -111,6 +112,42 @@ def calculate_concentrations(env: ParamSpace, P_i: fem.function.Function, bounda
 
     P_i.x.scatter_forward()
 
+    # Find tumor boundaries
+    '''
+    V0 = fem.functionspace(msh, ("DG", 0))
+    tumor_flag_dg = fem.Function(V0)
+    tumor_flag_dg.interpolate(p["tumor_flag"])
+    tumor_cell_values = tumor_flag_dg.x.array
+
+
+    from dolfinx.mesh import exterior_facet_indices, locate_entities, meshtags
+
+    tdim = msh.topology.dim
+    fdim = tdim - 1
+
+    # Compute connectivity (if needed)
+    msh.topology.create_connectivity(fdim, tdim)
+    msh.topology.create_connectivity(tdim, fdim)
+
+    # Get all interior facets (shared between two cells)
+    facet_to_cells = msh.topology.connectivity(fdim, tdim)
+
+    boundary_facets = []
+    for f in range(msh.topology.index_map(fdim).size_local):
+        cells = facet_to_cells.links(f)
+        if len(cells) == 2:
+            val1 = tumor_cell_values[cells[0]]
+            val2 = tumor_cell_values[cells[1]]
+            if abs(val1 - val2) > 1e-10:
+                boundary_facets.append(f)
+
+    boundary_facets = np.array(boundary_facets, dtype=np.int32)
+
+    # Tag them
+    facet_tag = meshtags(msh, fdim, boundary_facets, np.ones_like(boundary_facets))
+    '''
+
+
     # Assemble a Bilinear form for solving: 
     a  = (  (1/dt) * C_Nt * w_N
       + p["D_N"] * dot(grad(C_Nt), grad(w_N))
@@ -129,6 +166,22 @@ def calculate_concentrations(env: ParamSpace, P_i: fem.function.Function, bounda
         + p["K_deg-INT"] * C_INTt * w_INT
         - p["K_INT"] * C_Ft * w_INT ) * dx 
     
+    '''
+    n = FacetNormal(msh)
+    h = CellDiameter(msh)
+    eta_flux = fem.Constant(msh, ScalarType(10.0))  # You can tune this
+
+    # Define the flux vector
+    Jt = -p["D_N"] * grad(C_Nt) + v_i * C_Nt
+
+    # Penalty term on jump in flux (only normal component)
+    flux_jump_penalty = eta_flux / avg(h) * jump(Jt, n) * jump(w_N) * ufl.dS(1, domain=msh, subdomain_data=facet_tag)
+
+    # Add to your bilinear form
+    a += flux_jump_penalty
+    '''
+
+
     a = fem.form(a)                                 
 
     # Now for the Linear term:
@@ -147,7 +200,7 @@ def calculate_concentrations(env: ParamSpace, P_i: fem.function.Function, bounda
     # Linear Solver:
     problem = LinearProblem(a, L, bcs=bcs, u= C, petsc_options = {
     "ksp_type": "cg",
-    "pc_type": "gamg",
+    "pc_type": "hypre",
     "ksp_rtol": 1e-8,
     "ksp_max_it": 500,
     #"ksp_monitor": None
@@ -164,12 +217,13 @@ def calculate_concentrations(env: ParamSpace, P_i: fem.function.Function, bounda
     C_F_vals = []
     C_INT_vals = []
        
-    
+    rank = MPI.COMM_WORLD.Get_rank()
 
     for i in tqdm(range(timesteps), disable=not verbose):
         
         if not(verbose or i % percent_mark):
-            print(f"Progress {100 * i / timesteps}%", flush= True)
+            if rank == 0:
+                print(f"Progress {100 * i / timesteps}%", flush= True)
         # Tick time fowards
         t += dt
 

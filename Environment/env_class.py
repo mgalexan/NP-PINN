@@ -7,11 +7,16 @@ from os import path
 from scipy.interpolate import RegularGridInterpolator
 from scipy.sparse.linalg import LaplacianNd, aslinearoperator, cg
 from scipy.sparse import diags_array
+import ufl.finiteelement
 
 from Environment.geometry import GeometrySpace
 from Environment.tumors import Tumor
 
-from dolfinx import fem
+from dolfinx import fem, mesh
+import ufl
+from mpi4py import MPI
+from petsc4py import PETSc
+import basix.ufl
 
 
           
@@ -51,7 +56,177 @@ class ParamSpace:
             tumor_locs += check_array
         
         self.tumor_locs = tumor_locs
+
+        self.get_tumor_func()
+
+    def get_tumor_func(self):
+
+        if self.geometry.dim == 2:
+
+            x_coords = self.geometry.coord_matrix[0,:,0]
+            y_coords = self.geometry.coord_matrix[:,0,1]
+
+            interp = RegularGridInterpolator((x_coords, y_coords), self.tumor_locs, "cubic", bounds_error=False, fill_value= 1.0)
+
+        elif self.geometry.dim == 1:
+            x_coords = self.geometry.coord_matrix[:,0]
+
+            interp = RegularGridInterpolator([x_coords], self.tumor_locs, "cubic", bounds_error=False, fill_value= 1.0)
+
+
+        else:
+            x_coords = self.geometry.coord_matrix[0,0,:,0]
+            y_coords = self.geometry.coord_matrix[0,:,0,1]
+            z_coords = self.geometry.coord_matrix[:,0,0,2]
+
+            interp = RegularGridInterpolator((x_coords, y_coords, z_coords), self.tumor_locs, "cubic", bounds_error=False, fill_value= 1.0)
+
+        V = self.geometry.V
+        msh = self.geometry.mesh
+
+        func = fem.Function(V)
+
+        dof_coords = V.tabulate_dof_coordinates()
+
+        if self.geometry.dim == 2:
+            dof_coords = dof_coords[:, :2] # Remove the 3d embedding
+        
+        if self.geometry.dim == 1:
+            dof_coords = dof_coords[:, :1]
+
+
+        dof_coords = dof_coords.reshape((-1, msh.topology.dim))
+
+        values = interp(dof_coords)
+
+        # Assign to the Function
+        func.x.array[:] = values
+
+        self.tumor_func = func
+
+
+    def refine_near_tumor(self, n_iter=1) -> None:
+        if not self.geometry.mesh:
+            self.geometry.get_mesh()
+
+        if not isinstance(self.tumor_locs, np.ndarray):
+            self.compile_tumors()
+
+        if self.param_funcs:
+            raise Exception("Error: Refine the mesh before creating the parameter functions")
+
+        self.get_tumor_func()
+        if MPI.COMM_WORLD.Get_rank() == 0:
+            for _ in range(n_iter):
+                tumor_flag = self.tumor_func
+                msh = self.geometry.mesh
+
+                # Ensure connectivity
+                msh.topology.create_connectivity(msh.topology.dim, msh.topology.dim - 1)
+                msh.topology.create_connectivity(msh.topology.dim, msh.topology.dim)
+                msh.topology.create_connectivity(msh.topology.dim, 0)
+
+                c_to_e = msh.topology.connectivity(msh.topology.dim, msh.topology.dim - 1)
+                conn = msh.topology.connectivity(msh.topology.dim, msh.topology.dim)
+
+                # Get local cell indices
+                cell_indices = np.arange(msh.topology.index_map(msh.topology.dim).size_local)
+
+                # Locate tumor boundary cells
+                tumor_array = tumor_flag.x.array
+                marked_cells = []
+                for cell in cell_indices:
+                    dofs = fem.locate_dofs_topological(tumor_flag.function_space, msh.topology.dim, [cell])
+                    values = tumor_array[dofs]
+                    if np.any((values > 0.1) & (values < 0.9)):
+                        marked_cells.append(cell)
+                marked_cells = np.array(marked_cells, dtype=np.int32)
+
+                # Find neighboring cells
+                neighbor_cells = set()
+                for cell in marked_cells:
+                    neighbor_cells.update(conn.links(cell))
+                neighbor_cells = np.array(sorted(neighbor_cells - set(marked_cells)), dtype=np.int32)
+
+                # Combine for refinement
+                all_cells = np.concatenate([marked_cells, neighbor_cells])
+
+
+                # Collect unique edges to refine
+                edge_set = set()
+                for cell in all_cells:
+                    edge_set.update(c_to_e.links(cell))
+                edge_array = np.array(sorted(edge_set), dtype=np.int32)
+
+                # Refine mesh
+                
+                refined_mesh = mesh.refine(msh, edge_array)[0]
+
+
+                # Update geometry
+                V_new = fem.functionspace(refined_mesh, ("CG", 1))
+                self.geometry.V = V_new
+                self.geometry.mesh = refined_mesh
+
+                # Update tumor function on new mesh
+                self.get_tumor_func()
+
+
     
+
+    def broadcast_serial_mesh(self):
+        """
+        Broadcast a serial dolfinx mesh from rank 0 to all MPI ranks.
+        """
+        comm = MPI.COMM_WORLD
+        serial_mesh = self.geometry.mesh
+
+        rank = comm.rank
+
+        if rank == 0:
+            dim = serial_mesh.topology.dim
+            cell_name = serial_mesh.ufl_cell().cellname()
+            coords = serial_mesh.geometry.x
+            cells = serial_mesh.topology.create_connectivity(dim, 0)
+            cells = serial_mesh.topology.connectivity(dim, 0).array.reshape(-1, dim + 1)
+            
+        else:
+            dim = None
+            cell_name = None
+            
+        
+        # Broadcast metadata
+        dim = comm.bcast(dim, root=0)
+        cell_name = comm.bcast(cell_name, root=0)
+
+        # Allocate buffers
+        if rank != 0:
+            coords = np.empty((0, dim), dtype=np.float64)
+            cells = np.empty((0,dim), dtype=np.int32)
+        
+        #coords = comm.bcast(coords, root=0)
+        #cells = comm.bcast(cells, root=0)
+        coords = coords[:, :dim]
+        gdim = coords.shape[1]
+
+        # Create vector Lagrange element for coordinates
+        element = basix.ufl.element("Lagrange", cell_name, 1, shape=(gdim,))
+
+        # Wrap into coordinate element 
+        coord_element = ufl.Mesh(element)
+        
+        # Create parallel mesh from broadcasted data
+        parallel_mesh = mesh.create_mesh(comm, cells, coords, coord_element)
+        
+        self.geometry.mesh = parallel_mesh
+        self.geometry.V = fem.functionspace(self.geometry.mesh, ("CG", 1))
+
+        self.get_tumor_func()
+        
+        
+
+
+
         
     def get_param_arrays(self) -> None:
         """ Initialize arrays for the parameters in use based on the locations of solid tumors """
@@ -128,8 +303,7 @@ class ParamSpace:
             if self.geometry.dim == 1:
                 dof_coords = dof_coords[:, :1]
 
-
-            dof_coords = dof_coords.reshape((-1, msh.geometry.dim))
+            dof_coords = dof_coords.reshape((-1, msh.topology.dim))
 
             values = interp(dof_coords)
 
@@ -137,6 +311,8 @@ class ParamSpace:
             func.x.array[:] = values
 
             self.param_funcs[param] = func
+        
+        self.param_funcs["tumor_flag"] = self.tumor_func
     
     ''' --DEPRECATED-- '''
     def calculate_pressure(self, boundary_cond: str) -> None:

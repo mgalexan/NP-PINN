@@ -41,6 +41,11 @@ class Interpreter():
         self.labels = ["C_N", "C_F", "C_INT"]
         self.labels_tex = [r"$C_N$", r"$C_F$", r"$C_{INT}$"]
 
+        self.tumor_locs = env.tumor_locs
+        perm =list(range(0, env.geometry.dim))[::-1]
+        self.tumor_locs = np.transpose(env.tumor_locs, perm)
+        
+
     def crop(self, center: list, width: float):
         
         idx_center = [int(center[i] / self.geometry.ds) for i in range(len(center))]
@@ -54,6 +59,8 @@ class Interpreter():
             self.C_F_vals = self.C_vals[1]
             self.C_INT_vals = self.C_vals[2]
             self.xvals = np.linspace(0, 2 * width, self.P_i_val.shape[0])
+
+            self.tumor_locs = self.tumor_locs[idx_center[0] - width_idx:idx_center[0] + width_idx + 1]
         
         if self.dim == 2:
             self.P_i_val = self.P_i_val[idx_center[0] - width_idx:idx_center[0] + width_idx + 1, idx_center[1] - width_idx:idx_center[1] + width_idx + 1]
@@ -64,6 +71,8 @@ class Interpreter():
             self.C_INT_vals = self.C_vals[2]
             self.xvals = np.linspace(0, 2 * width, self.P_i_val.shape[0])
             self.yvals = np.linspace(0, 2 * width, self.P_i_val.shape[1])
+
+            self.tumor_locs = self.tumor_locs[idx_center[0] - width_idx:idx_center[0] + width_idx + 1, idx_center[1] - width_idx:idx_center[1] + width_idx + 1]
 
         self.midpoint = self.P_i_val.shape[0] // 2
 
@@ -186,15 +195,15 @@ class Interpreter():
         plt.clf()
 
     def time_center_plots(self, save_ext: str):
+        mask = np.tile(self.tumor_locs, (len(self.tvals), 1, 1))
+        sum_idx = tuple(range(1, self.geometry.dim + 1))
 
         for i in range(3):
-            if self.dim == 1:
-                sim_vals = np.array(self.C_vals[i])[:, self.midpoint]
-            elif self.dim == 2:
-                sim_vals = np.array(self.C_vals[i])[:, self.midpoint, self.midpoint]
-
+            sim_masked = np.where(mask, self.C_vals[i], 0)  
+            
+            sim_vals = np.sum(sim_masked, axis= sum_idx) * (self.geometry.ds ** self.geometry.dim)
             plt.plot(self.tvals, sim_vals, linewidth= 0.5)
-            plt.title(r"Evolution of " + self.labels_tex[i] + r"at tumor center by time")
+            plt.title(r"Evolution of the integral of " + self.labels_tex[i] + r" in tumor by time")
             plt.xlabel("time (s)")
             plt.ylabel(self.labels_tex[i])
             plt.savefig("./Plots/" + save_ext + "_conc_time_" + self.labels[i] + ".png")
@@ -227,7 +236,10 @@ class Interpreter():
 
             def plot_frame(n):
                 plt.clf()
-                line,  = plt.plot(self.xvals, self.C_vals[i][n], linewidth =0.5)
+                if self.dim == 1:
+                    line,  = plt.plot(self.xvals, self.C_vals[i][n], linewidth =0.5)
+                else:
+                    line,  = plt.plot(self.xvals, self.C_vals[i][n][self.midpoint], linewidth =0.5)
                 plt.ylim(0, max_c)
                 plt.title(f"Concentration at time t= {n * self.dt * self.sample_rate}")
                 plt.xlabel("x (cm)")

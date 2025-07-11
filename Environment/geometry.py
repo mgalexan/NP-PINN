@@ -4,6 +4,9 @@ from os import path
 from dolfinx import mesh, fem
 from mpi4py import MPI
 
+import matplotlib.pyplot as plt
+
+
 
 
 class GeometrySpace():
@@ -92,15 +95,15 @@ class GeometrySpace():
         if self.dim == 2:
             
             msh = mesh.create_rectangle(
-                comm=MPI.COMM_WORLD,
+                comm= MPI.COMM_SELF,
                 points=((0.0, 0.0), (self.width, self.height)),
                 n=(self.shape_x, self.shape_y),
-                cell_type=mesh.CellType.quadrilateral,
+                cell_type=mesh.CellType.triangle,
             )
         
         elif self.dim == 1:
             msh = mesh.create_interval(
-                comm=MPI.COMM_WORLD,
+                comm=MPI.COMM_SELF,
                 points=((0.0), (self.width)),
                 nx=self.shape_x
             )
@@ -108,7 +111,7 @@ class GeometrySpace():
         
         else: 
             msh = mesh.create_box(
-                comm=MPI.COMM_WORLD,
+                comm=MPI.COMM_SELF,
                 points=((0.0, 0.0, 0.0), (self.width, self.height, self.depth)),
                 n=(self.shape_x, self.shape_y, self.shape_z),
                 cell_type=mesh.CellType.tetrahedron,
@@ -120,7 +123,56 @@ class GeometrySpace():
         self.mesh = msh
         self.V = fem.functionspace(msh, ("CG", 1))
 
+    def visualize_mesh(self, save_ext: str):
 
+        msh = self.mesh
+        comm = msh.comm
+        rank = comm.rank
+
+        if msh.geometry.dim != 2:
+            raise ValueError("Only 2D meshes can be plotted with this function.")
+
+        # Local data
+        local_coords = msh.geometry.x
+        local_cells = msh.topology.connectivity(msh.topology.dim, 0).array
+        num_local_cells = msh.topology.index_map(msh.topology.dim).size_local
+        num_verts_per_cell = len(local_cells) // num_local_cells
+        local_cells = local_cells.reshape((-1, num_verts_per_cell))
+
+        # Gather all data to rank 0
+        all_coords = comm.gather(local_coords, root=0)
+        all_cells = comm.gather(local_cells, root=0)
+
+        if rank == 0:
+            # Stitch together global vertex array
+            # Get global number of vertices
+            global_coords = np.vstack(all_coords)
+
+            # Offset cell indices per rank
+            vertex_offsets = np.cumsum([0] + [len(c) for c in all_coords[:-1]])
+            offset_cells = []
+
+            for offset, cells, coords in zip(vertex_offsets, all_cells, all_coords):
+                offset_cells.append(cells + offset)
+
+            global_cells = np.vstack(offset_cells)
+
+            # Plot
+            fig, ax = plt.subplots(figsize=(12, 12))
+            ax.set_aspect("equal")
+
+            for cell in global_cells:
+                polygon = global_coords[cell]
+                polygon = np.vstack([polygon, polygon[0]])  # Close polygon
+                ax.plot(polygon[:, 0], polygon[:, 1], "k-", linewidth=0.1)
+
+            ax.set_xlabel("x")
+            ax.set_ylabel("y")
+            ax.set_title("2D mesh")
+            fig.savefig(f"./Plots/{save_ext}_meshplot.png")
+            plt.clf()
+
+ 
     
 
 
