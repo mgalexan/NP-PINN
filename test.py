@@ -1,22 +1,40 @@
 from ML.data_processing import get_loaders
-from ML.model import MLParams, BackwardPINN
+from ML.model import MLParams, ForwardPINN
 from ML.train import train_model
+from ML.plot_model import model_p_plot, model_p_lineplot
 from Environment.geometry import GeometrySpace
 from Environment.env_class import ParamSpace
-from ML.plot_model import model_implot
+from Environment.env_class import ParamSpace
+from Environment.geometry import GeometrySpace
+from Environment.flags import SphericalFlag
+from Physics.equations import pressure_constant, pressure_leading
+import torch as t
+import numpy as np
+import sys
+np.set_printoptions(threshold=sys.maxsize)
 
-geo = GeometrySpace(4, 4, 0, 0.1, 5, 9000)
+from Physics.calculate_pressure import calculate_pressure
+
+geo = GeometrySpace(4, 4, 0, 0.05, 0.05, 10)
+
 env = ParamSpace(geo)
 
-p = MLParams("./Config/ml_params.json")
+env.open_params("./Config/sim_params.json")
 
-train_loader, test_loader = get_loaders(["test"], p, 0.1)
-print(len(train_loader.dataset))
+env.add_flag(SphericalFlag([2, 2], 1.5))
 
-model = BackwardPINN(env, p)
+P_i = calculate_pressure(env, "neumann")
 
-#train_model(model, p, train_loader)
 
-model_implot(model, "test", 0, "test_start")
-model_implot(model, "test", 1000, "test_end")
+p = MLParams("./Config/ml_pressure_params.json")
+
+train_data, test_data = get_loaders((P_i, env), p, 1.0, "pressure")
+
+model = ForwardPINN(env, p)
+
+train_model(model, p, train_data, use_wandb= True)
+
+model_p_lineplot(model, P_i, "test")
+model_p_plot(model, P_i, "test")
+
 

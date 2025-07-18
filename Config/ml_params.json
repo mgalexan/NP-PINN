@@ -1,6 +1,6 @@
 {
     "in_size" : 3,
-    "num_hidden" : 6,
+    "num_hidden" : 4,
     "size_hidden" : 128,
     "activation" : "relu",
     "batch_size" : -1,
@@ -9,5 +9,5 @@
     "loss" : "MSE",
     "lr" : 5e-4,
     "momentum" : 0.0,
-    "num_epochs" : 2000
+    "num_epochs" : 500
 }

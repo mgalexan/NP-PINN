@@ -16,7 +16,7 @@ plt.style.use("ggplot")
 
 class Interpreter():
 
-    def __init__(self, env: ParamSpace, C: tuple, P_i: fem.Function, sample_rate = 100):
+    def __init__(self, env: ParamSpace, C: tuple, P_i: fem.Function, sample_rate = 100, labels = ["C_N", "C_F", "C_INT"], labels_tex = [r"$C_N$", r"$C_F$", r"$C_{INT}$"]):
 
         self.comm = MPI.COMM_WORLD
         self.rank = self.comm.Get_rank()
@@ -34,16 +34,16 @@ class Interpreter():
         self.T = env.geometry.T
         self.dt = env.geometry.dt
 
-        self.tvals = np.linspace(0, self.T, len(self.C_N_vals))
+        self.tvals = np.linspace(0, self.T, len(self.C_vals[0]))
         self.xvals = np.linspace(0, self.geometry.width, self.geometry.shape_x)
         self.yvals = np.linspace(0, self.geometry.height, self.geometry.shape_y)
         
-        self.labels = ["C_N", "C_F", "C_INT"]
-        self.labels_tex = [r"$C_N$", r"$C_F$", r"$C_{INT}$"]
+        self.labels = labels
+        self.labels_tex = labels_tex
 
-        self.tumor_locs = env.tumor_locs
+        
         perm =list(range(0, env.geometry.dim))[::-1]
-        self.tumor_locs = np.transpose(env.tumor_locs, perm)
+        self.tumor_locs = np.transpose(env.flag_locs["tumor"], perm)
         
 
     def crop(self, center: list, width: float):
@@ -53,22 +53,18 @@ class Interpreter():
 
         if self.dim == 1:
             self.P_i_val = self.P_i_val[idx_center[0] - width_idx:idx_center[0] + width_idx + 1]
-            for i in range(3):
+            for i in range(len(self.C_vals)):
                 self.C_vals[i] = [C[idx_center[0] - width_idx:idx_center[0] + width_idx + 1] for C in self.C_vals[i]]
-            self.C_N_vals = self.C_vals[0]
-            self.C_F_vals = self.C_vals[1]
-            self.C_INT_vals = self.C_vals[2]
+            
             self.xvals = np.linspace(0, 2 * width, self.P_i_val.shape[0])
 
             self.tumor_locs = self.tumor_locs[idx_center[0] - width_idx:idx_center[0] + width_idx + 1]
         
         if self.dim == 2:
             self.P_i_val = self.P_i_val[idx_center[0] - width_idx:idx_center[0] + width_idx + 1, idx_center[1] - width_idx:idx_center[1] + width_idx + 1]
-            for i in range(3):
+            for i in range(len(self.C_vals)):
                 self.C_vals[i] = [C[idx_center[0] - width_idx:idx_center[0] + width_idx + 1, idx_center[1] - width_idx:idx_center[1] + width_idx + 1] for C in self.C_vals[i]]
-            self.C_N_vals = self.C_vals[0]
-            self.C_F_vals = self.C_vals[1]
-            self.C_INT_vals = self.C_vals[2]
+        
             self.xvals = np.linspace(0, 2 * width, self.P_i_val.shape[0])
             self.yvals = np.linspace(0, 2 * width, self.P_i_val.shape[1])
 
@@ -81,21 +77,23 @@ class Interpreter():
         self.P_i_val = evaluate_env(P_i, self.geometry)[0]
 
     def load_C(self, C: tuple, sample_rate = 100):
-        self.C_N = C[0]
-        self.C_F = C[1]
-        self.C_INT = C[2]
-        self.C = [self.C_N, self.C_F, self.C_INT]
-
-        self.C_N_vals = [evaluate_env(C, self.geometry)[0] for C in self.C_N]
-        self.C_F_vals = [evaluate_env(C, self.geometry)[0] for C in self.C_F]
-        self.C_INT_vals = [evaluate_env(C, self.geometry)[0] for C in self.C_INT]
-        self.C_vals = [self.C_N_vals, self.C_F_vals, self.C_INT_vals]
+        
+        self.C = [C[i] for i in range(len(C))]
+        self.C_vals = []
+        for i in range(len(C)):
+            vals = []
+            for conc in self.C[i]:
+                vals.append(evaluate_env(conc, self.geometry)[0])
+            self.C_vals.append(vals)
+        
         
     
     def assemble_matrix(self):
-        self.C_N_mat = np.array(self.C_N_vals)
-        self.C_F_mat = np.array(self.C_F_vals)
-        self.C_INT_mat = np.array(self.C_INT_vals)
+
+        self.C_mat = []
+        for i in range(len(self.C_vals)):
+            self.C_mat.append(np.array(self.C_vals[i]))
+        
         if self.dim == 1:
             self.tt, self.xx = np.meshgrid(self.tvals, self.xvals, indexing="ij")
         elif self.dim == 2:
@@ -104,9 +102,9 @@ class Interpreter():
     def save_matrix(self, save_ext):
         self.assemble_matrix()
 
-        np.save("./Data/" + save_ext + "_C_N.npy", self.C_N_mat)
-        np.save("./Data/" + save_ext + "_C_F.npy", self.C_F_mat)
-        np.save("./Data/" + save_ext + "_C_INT.npy", self.C_INT_mat)
+        for i in range(len(self.C)):
+            np.save(f"./Data/{save_ext}_{self.labels[i]}.npy", self.C_mat[i])
+        
 
         np.save("./Data/" + save_ext + "_tt.npy", self.tt)
         np.save("./Data/" + save_ext + "_xx.npy", self.xx)
@@ -124,19 +122,17 @@ class Interpreter():
                 df_dict = {
                     "t" : self.tt.flatten(),
                     "x" : self.xx.flatten(),
-                    "C_N" : self.C_N_mat.flatten(),
-                    "C_F" : self.C_F_mat.flatten(),
-                    "C_INT" : self.C_INT_mat.flatten()
                 }
+                for i in range(len(self.C)):
+                    df_dict[self.labels[i]] = self.C_mat[i].flatten()
             elif self.dim == 2:
                 df_dict = {
                     "t" : self.tt.flatten(),
                     "x" : self.xx.flatten(),
                     "y" : self.yy.flatten(),
-                    "C_N" : self.C_N_mat.flatten(),
-                    "C_F" : self.C_F_mat.flatten(),
-                    "C_INT" : self.C_INT_mat.flatten()
                 }
+                for i in range(len(self.C)):
+                    df_dict[self.labels[i]] = self.C_mat[i].flatten()
 
             df = pd.DataFrame(df_dict)
 
@@ -149,11 +145,12 @@ class Interpreter():
             "TODO"
             pass
         elif self.dim == 2:
-            C_N_vec = self.C_N_mat.flatten().reshape(-1, 1)
-            C_F_vec = self.C_F_mat.flatten().reshape(-1, 1)
-            C_INT_vec = self.C_INT_mat.flatten().reshape(-1, 1)
+            C_vec = []
+            for i in range(len(self.C)):
+                C_vec.append(self.C_mat.flatten().reshape(-1, 1))
+            
 
-            C_vec = np.concatenate([C_N_vec, C_F_vec, C_INT_vec], axis = 1)
+            C_vec = np.concatenate(C_vec, axis = 1)
             C_t = from_numpy(C_vec).float()
 
             save(C_t, "./Data/Torch/" + save_ext + "_torchconc.pt")
@@ -194,11 +191,11 @@ class Interpreter():
         plt.savefig("./Plots/" + save_ext + "_pressure.png")
         plt.clf()
 
-    def time_center_plots(self, save_ext: str):
+    def time_center_plots(self, save_ext: str, do_frac_killed = False):
         mask = np.tile(self.tumor_locs, (len(self.tvals), 1, 1))
         sum_idx = tuple(range(1, self.geometry.dim + 1))
 
-        for i in range(3):
+        for i in range(len(self.C)):
             sim_masked = np.where(mask, self.C_vals[i], 0)  
             
             sim_vals = np.sum(sim_masked, axis= sum_idx) * (self.geometry.ds ** self.geometry.dim)
@@ -207,6 +204,17 @@ class Interpreter():
             plt.xlabel("time (s)")
             plt.ylabel(self.labels_tex[i])
             plt.savefig("./Plots/" + save_ext + "_conc_time_" + self.labels[i] + ".png")
+            plt.clf()
+        
+        if do_frac_killed:
+
+            C_INT_arr = np.sum(np.array(self.C_vals[-1]), sum_idx) * (self.geometry.ds ** self.geometry.dim)
+            FKC = 1 - np.exp(- self.env.params["omega"] * C_INT_arr)
+            plt.plot(self.tvals, FKC, linewidth= 0.5)
+            plt.title(r"Fraction of Killed Cells by time")
+            plt.xlabel("time (s)")
+            plt.ylabel("FKC")
+            plt.savefig("./Plots/" + save_ext + "_conc_time_FKC.png")
             plt.clf()
 
     def pressure_analytic_comparison(self, R, save_ext: str):
@@ -231,7 +239,7 @@ class Interpreter():
 
     def line_animation(self, save_ext: str):
 
-        for i in range(3):
+        for i in range(len(self.C)):
             max_c = np.array(self.C_vals[i]).max()
 
             def plot_frame(n):
@@ -253,7 +261,7 @@ class Interpreter():
                 return plot_frame(n)
 
             # Create animation: frames = number of timesteps
-            ani = FuncAnimation(fig, update, frames=range(0, len(self.C_N_vals), 1), blit=False)
+            ani = FuncAnimation(fig, update, frames=range(0, len(self.C_vals[0]), 1), blit=False)
 
             ani.save("./Animations/"+ save_ext +"_animation_" +  self.labels[i] + ".mp4", fps=30, dpi=150, extra_args=['-vcodec', 'libx264'])
         
@@ -268,12 +276,12 @@ class Interpreter():
         y_tick_labels = range(len(y_ticks))
 
 
-        for i in range(3):
+        for i in range(len(self.C)):
             max_c = np.array(self.C_vals[i]).max()
 
             def plot_frame(n):
                 plt.clf()
-                fig  = plt.imshow(self.C_vals[i][n], vmin= 0, vmax= max_c)
+                fig  = plt.imshow(self.C_vals[i][n], vmin= 0, vmax= min(max_c, 5))
                 plt.xticks(x_ticks, x_tick_labels)
                 plt.yticks(y_ticks, y_tick_labels)
                 plt.title(f"Concentration at time t= {n * self.dt * self.sample_rate}")
@@ -289,7 +297,7 @@ class Interpreter():
                 return plot_frame(n)
 
             # Create animation: frames = number of timesteps
-            ani = FuncAnimation(fig, update, frames=range(0, len(self.C_N_vals), 1), blit=False)
+            ani = FuncAnimation(fig, update, frames=range(0, len(self.C_vals[0]), 1), blit=False)
 
             ani.save("./Animations/"+ save_ext +"_animation_" +  self.labels[i] + ".mp4", fps=30, dpi=150, extra_args=['-vcodec', 'libx264'])
         

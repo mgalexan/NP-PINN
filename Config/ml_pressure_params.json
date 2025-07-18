@@ -1,0 +1,17 @@
+{
+    "in_size" : 2,
+    "out_size" : 1,
+    "num_hidden" : 3,
+    "size_hidden" : 128,
+    "activation" : "tanh",
+    "batch_size" : -1,
+    "train_test_split" : 0.99,
+    "opt" : "Adam",
+    "loss" : "Pressure_Loss",
+    "lr" : 5e-3,
+    "momentum" : 0.0,
+    "num_epochs" : 1000,
+    "phys_weight" : 100,
+    "num_coloc" : 10000,
+    "coloc_method" : "grid"
+}

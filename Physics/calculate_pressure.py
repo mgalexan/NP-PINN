@@ -16,8 +16,8 @@ def calculate_pressure(space: ParamSpace, boundary_cond: str) -> fem.function.Fu
     if not(space.geometry.mesh):
         space.geometry.get_mesh()
     
-    if not(isinstance(space.tumor_locs, np.ndarray)):
-        space.compile_tumors()
+    if not(isinstance(space.flag_locs, dict)):
+        space.compile_flags()
     
     if not(space.param_arrays):
         space.get_param_arrays()

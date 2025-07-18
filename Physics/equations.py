@@ -13,7 +13,7 @@ def pressure_leading(p: dict):
     """ Computes the coefficient of P_i in the pressure equations """
 
     coeff = -(p["L_P"] * p["S/V"] + p["L_PL(S/V)_L"]) / p["kappa"]
-
+    
     return coeff
 
 def pressure_constant(p: dict):
@@ -56,7 +56,7 @@ def comp_Phi_CF(p: dict, P_i):
     Pe = phi_B * (1.0 - p["sigma_f"]) / (p["P"] * p["S/V"])
     ratio = safe_Pe_ratio(Pe)
 
-    Pe_factor = p["P"] * p["S/V"] * ratio * p["tumor_flag"]
+    Pe_factor = p["P"] * p["S/V"] * ratio * p["tumor"]
 
     return Pe_factor + phi_L
 
@@ -70,7 +70,7 @@ def comp_Phi_C(p: dict, P_i):
     term1 = p["P"] * p["S/V"] * ratio
     term2 = phi_B * (1.0 - p["sigma_f"])
 
-    return p["tumor_flag"] * (term1 + term2)
+    return p["tumor"] * (term1 + term2)
     
 
 

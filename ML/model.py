@@ -20,12 +20,12 @@ class MLParams():
         return self.params[key]
 
 
-class BackwardPINN(nn.Module):
-    """ A PINN to handle the backwards case of learning the dynamics"""
+class ForwardPINN(nn.Module):
+    """ A PINN to handle the forwards case of learning the dynamics"""
 
     def __init__(self, env: ParamSpace, param_obj: MLParams):
         super().__init__()
-
+        self.device = t.device("cuda" if t.cuda.is_available() else "cpu")
         self.env = env
         self.params = param_obj
 
@@ -34,13 +34,26 @@ class BackwardPINN(nn.Module):
         self.xscale = 1 / self.env.geometry.width
         self.yscale = 1 / self.env.geometry.height
         self.tscale = 1 / self.env.geometry.T     
+        if param_obj["loss"] == "Pressure_Loss":
+            self.env.get_torch_funcs()
+            self.get_coloc_points(param_obj["coloc_method"], param_obj["num_coloc"])
 
+    def get_coloc_points(self, method= "grid", num_points = 1000):
+
+        if method == "grid":
+            if self.in_size == 2:
+                n_side = int(np.sqrt(num_points))
+                xvals = t.linspace(0, self.env.geometry.width, n_side)
+                yvals = t.linspace(0, self.env.geometry.height, n_side)
+                coords = t.stack(t.meshgrid(xvals, yvals, indexing="ij"), -1)
+                coords = coords.reshape(-1, 2).to(self.device)
+                self.coloc = coords.requires_grad_(requires_grad=True) 
 
     def make_layers(self) -> nn.Sequential:
 
         param_obj = self.params
         self.in_size = param_obj["in_size"]
-        self.out_size = 3 # Three concentrations
+        self.out_size = param_obj["out_size"] 
         self.num_hidden = param_obj["num_hidden"]
         self.size_hidden = param_obj["size_hidden"]
         
@@ -67,7 +80,7 @@ class BackwardPINN(nn.Module):
         def initialize_layer(m):
             if isinstance(m, nn.Linear):
                 nn.init.xavier_uniform(m.weight)
-                m.bias.data.fill_(0.01)
+                m.bias.data.fill_(1)
 
         net.apply(initialize_layer)
 
@@ -80,10 +93,13 @@ class BackwardPINN(nn.Module):
     def forward(self, x: t.Tensor) -> t.Tensor:
 
         y = t.ones_like(x)
-        y[:, 0] = self.tscale * x[:,0]
-        y[:, 1] = self.xscale * x[:,1]
-        y[:, 2] = self.yscale * x[:,2]
-
+        if self.in_size == 3:
+            y[:, 0] = self.tscale * x[:,0]
+            y[:, 1] = self.xscale * x[:,1]
+            y[:, 2] = self.yscale * x[:,2]
+        else:
+            y[:, 0] = self.xscale * x[:,0]
+            y[:, 1] = self.yscale * x[:,1]
         res = self.network(y)
 
         return res

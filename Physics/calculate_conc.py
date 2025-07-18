@@ -1,6 +1,5 @@
 import numpy as np
 from tqdm import tqdm
-
 import ufl
 import matplotlib.pyplot as plt
 from dolfinx import fem, mesh
@@ -17,8 +16,6 @@ from Physics.equations import comp_Phi_C, comp_Phi_CF, C_P_val
 from Environment.env_class import ParamSpace
 from Util.evaluate_function import evaluate_env
 
-import sys
-
 
 
 
@@ -28,8 +25,8 @@ def calculate_concentrations(env: ParamSpace, P_i: fem.function.Function, bounda
     if not(env.geometry.mesh):
         env.geometry.get_mesh()
 
-    if not(isinstance(env.tumor_locs, np.ndarray)):
-        env.compile_tumors()
+    if not(isinstance(env.flag_locs, dict)):
+        env.compile_flags()
     
     if not(env.param_arrays):
         env.get_param_arrays()
@@ -57,12 +54,17 @@ def calculate_concentrations(env: ParamSpace, P_i: fem.function.Function, bounda
 
     bcs = []
     if boundary_cond == "dirichlet":
-        
+        fdim = msh.topology.dim - 1
+        near_boundary_facets = mesh.locate_entities_boundary(msh, fdim, lambda x: np.full(x.shape[1], True))
+
         for i in range(W.num_sub_spaces):
-            sub, map = W.sub(i).collapse()
-            dofs = fem.locate_dofs_topological(sub, msh.topology.dim - 1, facets)
-            bc = fem.dirichletbc(ScalarType(0), dofs, sub)
+            V_sub = W.sub(i)
+            dofs = fem.locate_dofs_topological(V_sub, msh.topology.dim - 1, near_boundary_facets)
+            bc = fem.dirichletbc(ScalarType(0), dofs, V_sub)
             bcs.append(bc)
+
+
+
 
     elif boundary_cond == "neumann":
         pass        
@@ -97,13 +99,17 @@ def calculate_concentrations(env: ParamSpace, P_i: fem.function.Function, bounda
 
     # Set up the parameters of the equation
     T = env.geometry.T
-    dt = env.geometry.dt
-
+    dt = env.geometry.dt 
     p = env.param_funcs
+
+    try: 
+        edge = 1 - p["edge"]
+    except KeyError:
+        edge = 1.0
 
     tau = env.params["tau"]
 
-    v_i = - p["kappa"] * grad(P_i)
+    v_i = - p["kappa"] * grad(P_i) * edge
 
     C_P = fem.Constant(msh, C_P_val(0, tau))
 
@@ -111,43 +117,7 @@ def calculate_concentrations(env: ParamSpace, P_i: fem.function.Function, bounda
     Phi_C = comp_Phi_C(p, P_i)
 
     P_i.x.scatter_forward()
-
-    # Find tumor boundaries
-    '''
-    V0 = fem.functionspace(msh, ("DG", 0))
-    tumor_flag_dg = fem.Function(V0)
-    tumor_flag_dg.interpolate(p["tumor_flag"])
-    tumor_cell_values = tumor_flag_dg.x.array
-
-
-    from dolfinx.mesh import exterior_facet_indices, locate_entities, meshtags
-
-    tdim = msh.topology.dim
-    fdim = tdim - 1
-
-    # Compute connectivity (if needed)
-    msh.topology.create_connectivity(fdim, tdim)
-    msh.topology.create_connectivity(tdim, fdim)
-
-    # Get all interior facets (shared between two cells)
-    facet_to_cells = msh.topology.connectivity(fdim, tdim)
-
-    boundary_facets = []
-    for f in range(msh.topology.index_map(fdim).size_local):
-        cells = facet_to_cells.links(f)
-        if len(cells) == 2:
-            val1 = tumor_cell_values[cells[0]]
-            val2 = tumor_cell_values[cells[1]]
-            if abs(val1 - val2) > 1e-10:
-                boundary_facets.append(f)
-
-    boundary_facets = np.array(boundary_facets, dtype=np.int32)
-
-    # Tag them
-    facet_tag = meshtags(msh, fdim, boundary_facets, np.ones_like(boundary_facets))
-    '''
-
-
+    
     # Assemble a Bilinear form for solving: 
     a  = (  (1/dt) * C_Nt * w_N
       + p["D_N"] * dot(grad(C_Nt), grad(w_N))
@@ -165,21 +135,6 @@ def calculate_concentrations(env: ParamSpace, P_i: fem.function.Function, bounda
     a += (  (1/dt) * C_INTt * w_INT
         + p["K_deg-INT"] * C_INTt * w_INT
         - p["K_INT"] * C_Ft * w_INT ) * dx 
-    
-    '''
-    n = FacetNormal(msh)
-    h = CellDiameter(msh)
-    eta_flux = fem.Constant(msh, ScalarType(10.0))  # You can tune this
-
-    # Define the flux vector
-    Jt = -p["D_N"] * grad(C_Nt) + v_i * C_Nt
-
-    # Penalty term on jump in flux (only normal component)
-    flux_jump_penalty = eta_flux / avg(h) * jump(Jt, n) * jump(w_N) * ufl.dS(1, domain=msh, subdomain_data=facet_tag)
-
-    # Add to your bilinear form
-    a += flux_jump_penalty
-    '''
 
 
     a = fem.form(a)                                 
