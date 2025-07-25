@@ -1,5 +1,4 @@
 import torch as t
-from ML.model import ForwardPINN
 
 def gradient(tens, coords, type= "temporal"):
     
@@ -53,26 +52,26 @@ def compute_phi_B(P_i, coords, p):
     sigma_s = p["sigma_s"](coords)
     pi_b = p["pi_b"](coords)
     pi_i = p["pi_i"](coords)
-    P = P_i(coords)
     
-    return L_p * SV * (P_b - P - sigma_s * (pi_b - pi_i))
+    
+    return L_p * SV * (P_b - P_i - sigma_s * (pi_b - pi_i))
 
 def compute_phi_L(P_i, coords, p):
     L_pl = p["L_PL(S/V)_L"](coords)
     P_L = p["P_L"](coords)
-    P = P_i(coords)
+    
 
-    return L_pl * (P - P_L)
+    return L_pl * (P_i - P_L)
 
-def pressure_phys_loss(model, coords, p):
-    lhs = divergence(gradient(model(coords), coords, "spatial"), coords, "spatial") * p["kappa"](coords)
-    rhs = compute_phi_B(model, coords, p) - compute_phi_L(model, coords, p)
+def pressure_phys_loss(P_i, coords, p):
+    lhs = divergence(gradient(P_i, coords, "spatial"), coords, "spatial") * p["kappa"](coords)
+    rhs = compute_phi_B(P_i, coords, p) - compute_phi_L(P_i, coords, p)
     return t.sqrt(t.sum(t.square(lhs + rhs)))
 
-def compute_Pe_ratio(P_i, P, sigma_f, phi_B, coords, p):
+def compute_Pe_ratio(SV, P, sigma_f, phi_B):
 
 
-    Pe = phi_B * (1 - sigma_f) / (P * p["S/V"](coords))
+    Pe = phi_B * (1 - sigma_f) / (P * SV)
     
     epsilon = 1e-6
 
@@ -80,38 +79,43 @@ def compute_Pe_ratio(P_i, P, sigma_f, phi_B, coords, p):
     return Pe_ratio
 
 def compute_C_p(coords, tau):
-    times = coords[:,0]
-
+    times = coords[:,0].unsqueeze(-1)
     C_p = t.exp(-times / tau)
     return C_p
 
-def compute_Phi_C(P, sigma_f, tau, Pe_ratio, phi_B, coords, p):
+def compute_Phi_C(P, sigma_f, tau, Pe_ratio, phi_B, SV, tumor, coords):
 
     C_p = compute_C_p(coords, tau)
-
     term1 = phi_B * (1 - sigma_f)
-    term2 = P * p["S/V"](coords) * Pe_ratio
-    return C_p * (term1 + term2)
+    term2 = P * SV * Pe_ratio
+    return C_p * (term1 + term2) * tumor
 
-def compute_Phi_N(P, Pe_ratio, phi_L, coords, p):
+def compute_Phi_N(P, Pe_ratio, phi_L, SV, tumor, coords, p):
 
-    return P * p["S/V"](coords) * Pe_ratio + phi_L
+    return P * SV * Pe_ratio * tumor + phi_L
     
 
-def C_N_Loss(coords, C_N, D_N, v_i, K_rel, Phi_C, Phi_N):
+def C_N_Loss(coords, C_N, D_N, v_i, v_i_div, K_rel, Phi_C, Phi_N):
 
+    
     lhs = diff_t(C_N, coords)
 
-    rhs = - divergence(v_i * C_N) + D_N * divergence(gradient(C_N, coords), coords)
+    rhs =  D_N * divergence(gradient(C_N, coords), coords) 
+
+    rhs -= t.sum(gradient( C_N, coords) * v_i, dim= -1).unsqueeze(-1)
+    rhs -= v_i_div * C_N
+    
     rhs += -K_rel * C_N + Phi_C - Phi_N * C_N
 
     return t.sqrt(t.sum(t.square(lhs - rhs)))
 
-def C_F_Loss(coords, C_F, C_N, C_INT, D_F, v_i, alpha, K_rel, K_INT, K_degINT, K_degF):
+def C_F_Loss(coords, C_F, C_N, C_INT, D_F, v_i, v_i_div, alpha, K_rel, K_INT, K_degINT, K_degF):
 
     lhs = diff_t(C_F, coords)
 
-    rhs = - divergence(v_i * C_F) + D_F * divergence(gradient(C_F, coords), coords)
+    rhs = D_F * divergence(gradient(C_F, coords), coords)
+    rhs -= t.sum(gradient( C_F, coords) * v_i, dim= -1).unsqueeze(-1)
+    rhs -= v_i_div * C_F
     rhs += alpha * K_rel * C_N - K_INT * C_F
     rhs += K_degINT * C_INT - K_degF * C_F
 

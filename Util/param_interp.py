@@ -3,6 +3,7 @@ import torch
 import torch.nn.functional as F
 from dolfinx.fem import Function
 from Environment.geometry import GeometrySpace
+from Physics.physloss import gradient
 
 
 class DifferentiableField2D(torch.nn.Module):
@@ -42,5 +43,14 @@ class FieldWrapper(torch.nn.Module):
         y = x[:, 1:] # First dimension is time
         return self.module(y)
     
+class GradWrapper(torch.nn.Module):
+    def __init__(self, module: torch.nn.Module):
+        super().__init__()
+        self.module = module
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        vals = self.module(x)
+        grad = gradient(vals, x, "temporal")
+        return  grad
 
 

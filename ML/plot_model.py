@@ -2,6 +2,7 @@ from ML.model import ForwardPINN
 import torch as t
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
 from Util.evaluate_function import evaluate_env
 plt.style.use("ggplot")
 
@@ -19,7 +20,7 @@ def model_concplot(model: ForwardPINN, name, time: float, save_ext):
 
     coords = np.stack([tt[time_idx].flatten(), xx[time_idx].flatten(), yy[time_idx].flatten()], axis = -1)
     coords = t.from_numpy(coords).float()
-    preds = model(coords)
+    preds = model.forward_unscaled(coords) 
 
     C_N_preds = preds[:,0]
     C_F_preds = preds[:,1]
@@ -135,17 +136,104 @@ def model_p_lineplot(model: ForwardPINN, P_i, save_ext):
     plt.legend()
     plt.savefig("./Plots/" + save_ext + "_pressure_model_lineplot.png")
     
+def model_conc_anim(model: ForwardPINN, name, save_ext, fps= 30):
+    # Load data
+    tt = np.load(f"./Data/{name}_tt.npy")
+    xx = np.load(f"./Data/{name}_xx.npy")
+    yy = np.load(f"./Data/{name}_yy.npy")
 
-   
+    C_N_anal = np.load(f"./Data/{name}_C_N.npy")
+    C_F_anal = np.load(f"./Data/{name}_C_F.npy")
+    C_INT_anal = np.load(f"./Data/{name}_C_INT.npy")
 
+    # Tick parameters
+    tickstep = 1 / model.env.geometry.ds
+    x_ticks = np.arange(0, tt.shape[1], tickstep)
+    y_ticks = np.arange(0, tt.shape[2], tickstep)
+    x_tick_labels = range(len(x_ticks))
+    y_tick_labels = range(len(y_ticks))
+
+    # Color scale across all time steps
+    cmax = max(C_N_anal.max(), C_F_anal.max(), C_INT_anal.max())
+
+    fig, ax = plt.subplots(2, 3, figsize=(9, 5))
+
+    # --- First Row: Predicted ---
+    im_pred_N = ax[0, 0].imshow(np.zeros_like(tt[0]), vmin=0, vmax=cmax, cmap= "Blues")
+    ax[0, 0].set_title(r"$C_N$")
+    ax[0, 0].set_ylabel("Predicted (PyTorch)")
+    ax[0, 0].set_xticks(x_ticks, x_tick_labels)
+    ax[0, 0].set_yticks(y_ticks, y_tick_labels)
+
+    im_pred_F = ax[0, 1].imshow(np.zeros_like(tt[0]), vmin=0, vmax=cmax, cmap= "Blues")
+    ax[0, 1].set_title(r"$C_F$")
+    ax[0, 1].set_xticks(x_ticks, x_tick_labels)
+    ax[0, 1].set_yticks(y_ticks, y_tick_labels)
+
+    im_pred_INT = ax[0, 2].imshow(np.zeros_like(tt[0]), vmin=0, vmax=cmax, cmap= "Blues")
+    ax[0, 2].set_title(r"$C_{INT}$")
+    ax[0, 2].set_xticks(x_ticks, x_tick_labels)
+    ax[0, 2].set_yticks(y_ticks, y_tick_labels)
+
+    # --- Second Row: FEM ---
+    im_anal_N = ax[1, 0].imshow(C_N_anal[0], vmin=0, vmax=cmax, cmap= "Blues")
+    ax[1, 0].set_ylabel("FEM (FEniCSx)")
+    ax[1, 0].set_xticks(x_ticks, x_tick_labels)
+    ax[1, 0].set_yticks(y_ticks, y_tick_labels)
+
+    im_anal_F = ax[1, 1].imshow(C_F_anal[0], vmin=0, vmax=cmax, cmap= "Blues")
+    ax[1, 1].set_xticks(x_ticks, x_tick_labels)
+    ax[1, 1].set_yticks(y_ticks, y_tick_labels)
+
+    im_anal_INT = ax[1, 2].imshow(C_INT_anal[0], vmin=0, vmax=cmax, cmap= "Blues")
+    ax[1, 2].set_xticks(x_ticks, x_tick_labels)
+    ax[1, 2].set_yticks(y_ticks, y_tick_labels)
+
+    # Add colorbar to last predicted column
+    cbar = fig.colorbar(im_pred_INT, ax=ax, orientation='vertical', shrink=0.8)
+    cbar.set_label("Concentration")
+
+    # Animation update function
+    def update(frame_idx):
+        coords = np.stack([tt[frame_idx].flatten(), xx[frame_idx].flatten(), yy[frame_idx].flatten()], axis=-1)
+        coords = t.from_numpy(coords).float()
+        preds = model.forward_unscaled(coords)
+
+        C_N_pred = preds[:, 0].detach().numpy().reshape(tt[frame_idx].shape)
+        C_F_pred = preds[:, 1].detach().numpy().reshape(tt[frame_idx].shape)
+        C_INT_pred = preds[:, 2].detach().numpy().reshape(tt[frame_idx].shape)
+
+        # Update imshow objects
+        im_pred_N.set_data(C_N_pred)
+        im_anal_N.set_data(C_N_anal[frame_idx])
+
+        im_pred_F.set_data(C_F_pred)
+        im_anal_F.set_data(C_F_anal[frame_idx])
+
+        im_pred_INT.set_data(C_INT_pred)
+        im_anal_INT.set_data(C_INT_anal[frame_idx])
+
+        fig.suptitle(f"Model and Numerical Values at t = {tt[frame_idx, 0, 0]:.2f}")
+        return [im_pred_N, im_anal_N, im_pred_F, im_anal_F, im_pred_INT, im_anal_INT]
+
+    # Build and save animation
+    anim = FuncAnimation(fig, update, frames=range(len(tt)), interval=1000 / fps)
+
+    anim.save(f"./Animations/{save_ext}_model_concs.mp4", fps=fps, dpi=150)
+
+    plt.close(fig)
 
 
     
-    
-    
 
 
 
-    
-    
-    
+        
+        
+        
+
+
+
+        
+        
+        

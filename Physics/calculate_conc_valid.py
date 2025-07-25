@@ -136,7 +136,7 @@ def calculate_concentrations(env: ParamSpace, P_i: fem.function.Function, bounda
     a += (  (1/dt) * C_Bt * w_B
           + p["K_INT"] * C_Bt * w_B
           - ((1 / p["phi"]) * p["K_ON"] * p["C_rec"]) * C_Ft * w_B
-          + p["K_OFF"] * C_Bt * w_F ) * dx  
+          + p["K_OFF"] * C_Bt * w_B ) * dx  
           
 
     a += (  (1/dt) * C_INTt * w_INT

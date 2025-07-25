@@ -18,6 +18,10 @@ class MLParams():
     
     def __getitem__(self, key):
         return self.params[key]
+    
+    def __setitem__(self, key, value):
+        self.params[key] = value
+
 
 
 class ForwardPINN(nn.Module):
@@ -37,6 +41,9 @@ class ForwardPINN(nn.Module):
         if param_obj["loss"] == "Pressure_Loss":
             self.env.get_torch_funcs()
             self.get_coloc_points(param_obj["coloc_method"], param_obj["num_coloc"])
+        if param_obj["loss"] == "Conc_Loss_Forward":
+            self.env.get_torch_funcs()
+            self.get_coloc_points(param_obj["coloc_method"], param_obj["num_coloc"])
 
     def get_coloc_points(self, method= "grid", num_points = 1000):
 
@@ -47,7 +54,15 @@ class ForwardPINN(nn.Module):
                 yvals = t.linspace(0, self.env.geometry.height, n_side)
                 coords = t.stack(t.meshgrid(xvals, yvals, indexing="ij"), -1)
                 coords = coords.reshape(-1, 2).to(self.device)
-                self.coloc = coords.requires_grad_(requires_grad=True) 
+                self.coloc = coords.requires_grad_(requires_grad=True)
+            if self.in_size == 3:
+                n_side = int(np.cbrt(num_points))
+                tvals = t.linspace(0, self.env.geometry.T, n_side)
+                xvals = t.linspace(0, self.env.geometry.width, n_side)
+                yvals = t.linspace(0, self.env.geometry.height, n_side)
+                coords = t.stack(t.meshgrid(tvals, xvals, yvals, indexing="ij"), -1)
+                coords = coords.reshape(-1, 3).to(self.device)
+                self.coloc = coords.requires_grad_(requires_grad=True)
 
     def make_layers(self) -> nn.Sequential:
 
@@ -80,7 +95,7 @@ class ForwardPINN(nn.Module):
         def initialize_layer(m):
             if isinstance(m, nn.Linear):
                 nn.init.xavier_uniform(m.weight)
-                m.bias.data.fill_(1)
+                m.bias.data.fill_(0.01)
 
         net.apply(initialize_layer)
 
@@ -104,6 +119,8 @@ class ForwardPINN(nn.Module):
 
         return res
 
+    def forward_unscaled(self, x: t.Tensor) -> t.Tensor:
+        return self.forward(x) / self.params["output_scaling"]
 
             
 

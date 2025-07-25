@@ -22,7 +22,7 @@ rank = comm.Get_rank()
     
 name = "four_conc"
 
-test_geo = GeometrySpace(5, 5, 0, 0.025, 0.1, 3600)
+test_geo = GeometrySpace(6, 6, 0, 0.05, 0.05, 36000)
 
 test = ParamSpace(test_geo)
 
@@ -30,9 +30,9 @@ test = ParamSpace(test_geo)
 test.open_params("./Config/sim_params_valid.json")
 
 
-test.add_flag(SphericalFlag([2.5, 2.5], 1.0))
+test.add_flag(SphericalFlag([3, 3], 1.0))
 test.add_flag(EdgeFlag2D(0.1), "edge")
-test.add_flag(SphericalFlag([2.5, 2.5], 0.6), "necrotic")
+test.add_flag(SphericalFlag([3, 3], 0.6), "necrotic")
 
 if rank == 0:
     print("Refining Mesh...", flush=True)
@@ -53,7 +53,7 @@ if rank == 0:
 
 if rank == 0:
     print("Computing Concentrations...", flush=True)
-C = calculate_concentrations(test, P_i, "dirichlet", verbose= True)
+C = calculate_concentrations(test, P_i, "dirichlet", verbose= False)
 if rank == 0:
     print("Done!", flush=True)
 
@@ -67,7 +67,7 @@ interp = Interpreter(test, C, P_i, sample_rate= 100, labels=labels, labels_tex=l
 comm.barrier()
 
 if rank == 0:
-    #interp.crop([3, 3], 2)
+    interp.crop([3, 3], 2)
 
     #interp.save_matrix(name)
     #interp.save_tensor(name)

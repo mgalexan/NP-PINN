@@ -147,7 +147,7 @@ class Interpreter():
         elif self.dim == 2:
             C_vec = []
             for i in range(len(self.C)):
-                C_vec.append(self.C_mat.flatten().reshape(-1, 1))
+                C_vec.append(self.C_mat[i].flatten().reshape(-1, 1))
             
 
             C_vec = np.concatenate(C_vec, axis = 1)

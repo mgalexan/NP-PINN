@@ -1,30 +1,13 @@
-Refining Mesh...
-Done!
-Computing Pressure...
-Done!
-Computing Concentrations...
-Progress 0.0%
-Progress 5.0%
-Progress 10.0%
-Progress 15.0%
-Progress 20.0%
-Progress 25.0%
-Progress 30.0%
-Progress 35.0%
-Progress 40.0%
-Progress 45.0%
-Progress 50.0%
-Progress 55.0%
-Progress 60.0%
-Progress 65.0%
-Progress 70.0%
-Progress 75.0%
-Progress 80.0%
-Progress 85.0%
-Progress 90.0%
-Progress 95.0%
-Done!
-Interpreting Results...
-Done!
-Making Plots...
-Done!
+wandb: Currently logged in as: mgalexan (mgalexan-university-of-waterloo) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: Tracking run with wandb version 0.21.0
+wandb: Run data is saved locally in /u/mgalexan/NP-PINN/wandb/run-20250725_140254-8j3cj6wi
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run happy-cherry-236
+wandb: ⭐️ View project at https://wandb.ai/mgalexan-university-of-waterloo/NP-PINN
+wandb: 🚀 View run at https://wandb.ai/mgalexan-university-of-waterloo/NP-PINN/runs/8j3cj6wi
+Training on 10497 samples
+Training on device cpu
+Begin training at 2025-07-25 14:02:54.891587
+Progess 0%Progess 1%Progess 2%Progess 3%Progess 4%Progess 5%Progess 6%Progess 7%Progess 8%Progess 9%Progess 10%Progess 11%Progess 12%Progess 13%Progess 14%Progess 15%Progess 16%Progess 17%Progess 18%Progess 19%Progess 20%Progess 21%Progess 22%Progess 23%Progess 24%Progess 25%Progess 26%Progess 27%Progess 28%Progess 29%Progess 30%Progess 31%Progess 32%Progess 33%Progess 34%Progess 35%Progess 36%Progess 37%Progess 38%Progess 39%Progess 40%Progess 41%Progess 42%Progess 43%Progess 44%Progess 45%Progess 46%Progess 47%Progess 48%Progess 49%Progess 50%Progess 51%Progess 52%Progess 53%Progess 54%Progess 55%Progess 56%Progess 57%Progess 58%Progess 59%Progess 60%Progess 61%Progess 62%Progess 63%Progess 64%Progess 65%Progess 66%Progess 67%Progess 68%Progess 69%Progess 70%Progess 71%Progess 72%Progess 73%Progess 74%Progess 75%Progess 76%Progess 77%Progess 78%Progess 79%Progess 80%Progess 81%Progess 82%Progess 83%Progess 84%Progess 85%Progess 86%Progess 87%Progess 88%Progess 89%Progess 90%Progess 91%Progess 92%Progess 93%Progess 94%Progess 95%Progess 96%Progess 97%Progess 98%Progess 99%[1;34mwandb[0m: 
+[1;34mwandb[0m: 🚀 View run [33mhappy-cherry-236[0m at: [34mhttps://wandb.ai/mgalexan-university-of-waterloo/NP-PINN/runs/8j3cj6wi[0m
+[1;34mwandb[0m: Find logs at: [1;35mwandb/run-20250725_140254-8j3cj6wi/logs[0m

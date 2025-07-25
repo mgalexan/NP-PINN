@@ -41,6 +41,36 @@ class ConcData(Dataset):
     def __len__(self):
         return len(self.coords)
 
+class SparseConcData(Dataset):
+    def __init__(self, name, times):
+        super().__init__()
+        self.device = t.device("cuda" if t.cuda.is_available() else "cpu")
+        coord_full = t.load("./Data/Torch/" + name + "_torchcoord.pt")
+
+        conc_full = t.load("./Data/Torch/" + name + "_torchconc.pt")
+
+        concs = []
+        coords = []
+        
+        for time in times:
+
+            idx_time = t.where(coord_full[:, 0]  >= time)[0][0]
+            time_val = coord_full[idx_time, 0]
+            idx = (coord_full[:, 0] == time_val)
+
+            concs.append(conc_full[idx])
+            coords.append(coord_full[idx])
+
+        self.concs = t.cat(concs, 0).to(self.device)
+        self.coords = t.cat(coords, 0).to(self.device)
+        
+
+    def __getitem__(self, index):
+        return self.coords[index], self.concs[index]
+    
+    def __len__(self):
+        return len(self.coords)
+        
 
 class PDatata(Dataset):
     def __init__(self, P_i: Function, env: ParamSpace, sample_ratio = 1.0):
@@ -82,6 +112,9 @@ def get_loaders(input, p: MLParams, sample_ratio = 1.0, data_type: str = "concen
     
     elif data_type == "pressure":
         data = PDatata(input[0], input[1], sample_ratio)
+    
+    elif data_type == "concentration_sparse":
+        data = SparseConcData(input[0], input[1])
 
 
     size_train = int(p.params["train_test_split"] * len(data))
@@ -98,5 +131,7 @@ def get_loaders(input, p: MLParams, sample_ratio = 1.0, data_type: str = "concen
 
     train_loader = DataLoader(train_dataset, batch_size_train)
     test_loader = DataLoader(test_dataset, batch_size_test)
+
+    print(f"Training on {len(train_dataset)} samples")
 
     return train_loader, test_loader
