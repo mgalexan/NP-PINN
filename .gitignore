@@ -2016,3 +2016,12 @@ wandb/run-20250731_122844-p6q41loj/logs/debug-core.log
 wandb/run-20250731_122844-p6q41loj/logs/debug-internal.log
 wandb/run-20250731_122844-p6q41loj/logs/debug.log
 output2.log
+Data/no_space_C_F.npy
+Data/no_space_C_INT.npy
+Data/no_space_C_N.npy
+Data/no_space_tt.npy
+Data/no_space_xx.npy
+Data/no_space_yy.npy
+Data/Torch/no_space_torchconc.pt
+Data/Torch/no_space_torchcoord.pt
+Animations/.nfs00000000f4e87537000000c7
