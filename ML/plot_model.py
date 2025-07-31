@@ -26,9 +26,9 @@ def model_concplot(model: ForwardPINN, name, time: float, save_ext):
     C_F_preds = preds[:,1]
     C_INT_preds = preds[:,2]
 
-    C_N_preds_arr = C_N_preds.detach().numpy().reshape(tt[time_idx].shape)
-    C_F_preds_arr = C_F_preds.detach().numpy().reshape(tt[time_idx].shape)
-    C_INT_preds_arr = C_INT_preds.detach().numpy().reshape(tt[time_idx].shape)
+    C_N_preds_arr = C_N_preds.cpu().detach().numpy().reshape(tt[time_idx].shape)
+    C_F_preds_arr = C_F_preds.cpu().detach().numpy().reshape(tt[time_idx].shape)
+    C_INT_preds_arr = C_INT_preds.cpu().detach().numpy().reshape(tt[time_idx].shape)
 
     
     cmax = max(C_N_preds_arr.max(), C_F_preds_arr.max(), C_INT_preds_arr.max())
@@ -86,7 +86,7 @@ def model_p_plot(model: ForwardPINN, P_i, save_ext):
     coords = t.meshgrid(xvals, yvals, indexing= "ij")
     coords = t.stack(coords, dim= -1).reshape(-1,2)
 
-    preds = model(coords).detach().numpy()
+    preds = model(coords).cpu().detach().numpy()
     preds = preds.reshape(env.geometry.shape_x, env.geometry.shape_y)
 
     tickstep = 1 / model.env.geometry.ds
@@ -122,7 +122,7 @@ def model_p_lineplot(model: ForwardPINN, P_i, save_ext):
     
     coords = t.stack([xvals, midpoint_t], dim= 1)
 
-    preds = model(coords).detach().numpy()
+    preds = model(coords).cpu().detach().numpy()
 
     anal_midpoint = int(midpoint.item() / model.env.geometry.ds)
 
@@ -197,7 +197,7 @@ def model_conc_anim(model: ForwardPINN, name, save_ext, fps= 30):
     def update(frame_idx):
         coords = np.stack([tt[frame_idx].flatten(), xx[frame_idx].flatten(), yy[frame_idx].flatten()], axis=-1)
         coords = t.from_numpy(coords).float()
-        preds = model.forward_unscaled(coords)
+        preds = model.forward_unscaled(coords).cpu()
 
         C_N_pred = preds[:, 0].detach().numpy().reshape(tt[frame_idx].shape)
         C_F_pred = preds[:, 1].detach().numpy().reshape(tt[frame_idx].shape)

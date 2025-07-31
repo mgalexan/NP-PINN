@@ -9,11 +9,13 @@ from Physics.physloss import gradient
 class DifferentiableField2D(torch.nn.Module):
     def __init__(self, arr_2d: torch.Tensor, geo: GeometrySpace):
         super().__init__()
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         field = torch.tensor(arr_2d, dtype=torch.float32)
         self.register_buffer("field", field.unsqueeze(0).unsqueeze(0))
         self.width = geo.width
         self.height = geo.height
-    
+
+        self.to(self.device)
 
     def forward(self, coords: torch.Tensor) -> torch.Tensor:
         """

@@ -8,7 +8,7 @@ from Environment.geometry import GeometrySpace
 from Environment.flags import SphericalFlag
 from Util.param_interp import FieldWrapper, GradWrapper
 from ML.plot_model import model_concplot, model_p_plot
-from Physics.calculate_pressure import calculate_pressure
+from Physics.calculate_pressure import calculate_pressure, model_conc_anim
 import torch as t
 import numpy as np
 import sys
@@ -26,10 +26,10 @@ env.add_flag(SphericalFlag([2, 2], 1))
 env.compile_flags()
 env.get_param_arrays()
 
-P_i = calculate_pressure(env, "neumann")
-
 p = MLParams("./Config/ml_pressure_params.json")
 P_model = ForwardPINN(env, p)
+
+
 
 p_data, _ = get_loaders((P_i, env), p, 1.0, "pressure")
 
@@ -50,10 +50,10 @@ model = ForwardPINN(env, p)
 env.torch_funcs["P_i"] = P_model
 env.torch_funcs["v_i"] = v_i
 
-train_data, test_data = get_loaders(["ml_data", [0, 900, 1800, 2700, 3600]], p, data_type= "concentration_sparse")
+train_data, test_data = get_loaders(["ml_data"], p, 0.01, data_type= "concentration")
 
 
-train_model(model, p, train_data, use_wandb= True, verbose= True)
+train_model(model, p, train_data, use_wandb= True, verbose= False)
 
 t.save(model.state_dict(), "./Models/conc_model.pt")
 

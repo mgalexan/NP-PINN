@@ -116,7 +116,7 @@ def get_loaders(input, p: MLParams, sample_ratio = 1.0, data_type: str = "concen
     elif data_type == "concentration_sparse":
         data = SparseConcData(input[0], input[1])
 
-
+    
     size_train = int(p.params["train_test_split"] * len(data))
     size_test = len(data) - size_train
 

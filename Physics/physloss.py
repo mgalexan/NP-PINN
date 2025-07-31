@@ -19,6 +19,7 @@ def divergence(field, coords, type= "temporal"):
     
     div = t.zeros(field.shape[0], device=coords.device)
     for j in range(2):  # field.shape[1] == 2
+        assert field.requires_grad
         grad = t.autograd.grad(
             outputs=field[:, j],
             inputs=coords,
@@ -107,7 +108,7 @@ def C_N_Loss(coords, C_N, D_N, v_i, v_i_div, K_rel, Phi_C, Phi_N):
     
     rhs += -K_rel * C_N + Phi_C - Phi_N * C_N
 
-    return t.sqrt(t.sum(t.square(lhs - rhs)))
+    return (t.mean(t.square(lhs - rhs)))
 
 def C_F_Loss(coords, C_F, C_N, C_INT, D_F, v_i, v_i_div, alpha, K_rel, K_INT, K_degINT, K_degF):
 
@@ -119,7 +120,7 @@ def C_F_Loss(coords, C_F, C_N, C_INT, D_F, v_i, v_i_div, alpha, K_rel, K_INT, K_
     rhs += alpha * K_rel * C_N - K_INT * C_F
     rhs += K_degINT * C_INT - K_degF * C_F
 
-    return t.sqrt(t.sum(t.square(lhs - rhs)))
+    return (t.mean(t.square(lhs - rhs)))
 
 def C_INT_Loss(coords, C_INT, C_F, K_degINT, K_INT):
 
@@ -127,7 +128,7 @@ def C_INT_Loss(coords, C_INT, C_F, K_degINT, K_INT):
 
     rhs = K_INT * C_F - K_degINT * C_INT
 
-    return t.sqrt(t.sum(t.square(lhs - rhs)))
+    return t.mean(t.square(lhs - rhs))
 
 
 

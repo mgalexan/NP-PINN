@@ -41,9 +41,14 @@ class ForwardPINN(nn.Module):
         if param_obj["loss"] == "Pressure_Loss":
             self.env.get_torch_funcs()
             self.get_coloc_points(param_obj["coloc_method"], param_obj["num_coloc"])
-        if param_obj["loss"] == "Conc_Loss_Forward":
+        if param_obj["loss"] in {"Conc_Loss_Forward", "Conc_Loss_Backward"}:
             self.env.get_torch_funcs()
             self.get_coloc_points(param_obj["coloc_method"], param_obj["num_coloc"])
+        
+        if param_obj["loss"] == "Conc_Loss_Backward":
+            self.alpha = nn.parameter.Parameter(20 * t.ones(1))
+
+        self.to(self.device)
 
     def get_coloc_points(self, method= "grid", num_points = 1000):
 
@@ -107,7 +112,7 @@ class ForwardPINN(nn.Module):
 
     def forward(self, x: t.Tensor) -> t.Tensor:
 
-        y = t.ones_like(x)
+        y = t.ones_like(x).to(self.device)
         if self.in_size == 3:
             y[:, 0] = self.tscale * x[:,0]
             y[:, 1] = self.xscale * x[:,1]
