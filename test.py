@@ -7,7 +7,7 @@ from Environment.env_class import ParamSpace
 from Environment.geometry import GeometrySpace
 from Environment.flags import SphericalFlag
 from Util.param_interp import FieldWrapper, GradWrapper
-from ML.plot_model import model_concplot
+from ML.plot_model import model_concplot, model_conc_anim
 import torch as t
 import numpy as np
 import sys
@@ -42,14 +42,14 @@ model = ForwardPINN(env, p)
 env.torch_funcs["P_i"] = P_model
 env.torch_funcs["v_i"] = v_i
 
-train_data, test_data = get_loaders(["ml_data", [0, 900, 1800, 2700, 3600]], p, data_type= "concentration_sparse")
+train_data, test_data = get_loaders(["ml_data"], p, 0.01, data_type= "concentration")
 
 
-train_model(model, p, train_data, use_wandb= True, verbose= True)
+train_model(model, p, train_data, use_wandb= True, verbose= False)
 
 t.save(model.state_dict(), "./Models/conc_model.pt")
 
-#model_concplot(model, "ml_data", 1800, "test")
+model_conc_anim(model, "ml_data", "test")
 
 
 
