@@ -57,7 +57,7 @@
 
     "K_rel" : {
         "normal" : 0.0,
-        "tumor" : 1e-4
+        "tumor" : 1e-3
     },
 
     "alpha" : 20,
@@ -69,13 +69,13 @@
 
     "K_INT" : 5e-5,
 
-    "phi" : 0.05,
+    "phi" : 0.4,
 
-    "K_ON" : 1.5e5,
+    "K_ON" : 1.5e2,
 
     "K_OFF" : 8e-3,
 
-    "C_rec" : 1e-6,
+    "C_rec" : 1e-5,
 
     "omega" : 0.6603
 

@@ -10,11 +10,11 @@
     "loss" : "Conc_Loss_Forward",
     "lr" : 5e-5,
     "momentum" : 0.0,
-    "num_epochs" : 4000,
+    "num_epochs" : 3000,
     "phys_weight" : 0.1,
     "num_coloc" : 5000,
     "coloc_method" : "grid",
     "save_best" : 1,
-    "phys_start" : 3000,
+    "phys_start" : 1000,
     "output_scaling" : 200
 }

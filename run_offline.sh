@@ -1,1 +1,1 @@
-nohup mpirun -n 120 python ./simulation.py > output.log 2>&1 &
+nohup mpirun -n 80 python ./simulation.py > output2.log 2>&1 &

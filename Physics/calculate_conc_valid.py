@@ -83,7 +83,7 @@ def calculate_concentrations(env: ParamSpace, P_i: fem.function.Function, bounda
     C_Bn = C_n.sub(2)
     C_INTn = C_n.sub(3)
 
-    C_N, C_F, C_Bn, C_INT = ufl.split(C)
+    C_N, C_F, C_B, C_INT = ufl.split(C)
 
     # Trial and Test functions for the weak formulation
     C_Nt, C_Ft, C_Bt, C_INTt = ufl.TrialFunctions(W)

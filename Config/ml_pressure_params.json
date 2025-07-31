@@ -13,5 +13,8 @@
     "num_epochs" : 1000,
     "phys_weight" : 100,
     "num_coloc" : 10000,
-    "coloc_method" : "grid"
+    "coloc_method" : "grid",
+    "phys_start" : -1,
+    "output_scaling" : 1, 
+    "save_best" : 1
 }

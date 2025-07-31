@@ -120,14 +120,14 @@ def calculate_concentrations(env: ParamSpace, P_i: fem.function.Function, bounda
     
     # Assemble a Bilinear form for solving: 
     a  = (  (1/dt) * C_Nt * w_N
-      + p["D_N"] * dot(grad(C_Nt), grad(w_N))
-      - dot(v_i, grad(w_N)) * C_Nt
+      #+ p["D_N"] * dot(grad(C_Nt), grad(w_N))
+      #- dot(v_i, grad(w_N)) * C_Nt
       + p["K_rel"] * C_Nt * w_N 
       + Phi_CF * C_Nt * w_N) * dx 
                
     a += (  (1/dt) * C_Ft * w_F
-        + p["D_F"] * dot(grad(C_Ft), grad(w_F))
-        - dot(v_i, grad(w_F)) * C_Ft
+        #+ p["D_F"] * dot(grad(C_Ft), grad(w_F))
+        #- dot(v_i, grad(w_F)) * C_Ft
         + (p["K_INT"] + p["K_deg-F"]) * C_Ft * w_F
         - p["alpha"] * p["K_rel"] * C_Nt * w_F             
         - p["K_deg-INT"] * C_INTt * w_F ) * dx  
