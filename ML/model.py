@@ -42,7 +42,7 @@ class ForwardPINN(nn.Module):
         if param_obj["loss"] == "Pressure_Loss":
             self.env.get_torch_funcs()
             self.get_coloc_points(param_obj["coloc_method"], param_obj["num_coloc"])
-        if param_obj["loss"] in {"Conc_Loss_Forward", "Conc_Loss_Backward"}:
+        if param_obj["loss"] in {"Conc_Loss_Forward", "Conc_Loss_Backward", "Growth_Loss_Forward"}:
             self.env.get_torch_funcs()
             self.get_coloc_points(param_obj["coloc_method"], param_obj["num_coloc"])
         
