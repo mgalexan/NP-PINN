@@ -1,0 +1,32 @@
+Hostname: gpu-pr1-03
+CUDA_VISIBLE_DEVICES: 0
+Thu Aug 14 16:13:20 2025       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 550.90.07              Driver Version: 550.90.07      CUDA Version: 12.4     |
+|-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA H100 80GB HBM3          On  |   00000000:CB:00.0 Off |                    0 |
+| N/A   28C    P0             70W /  700W |       1MiB /  81559MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+                                                                                         
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI        PID   Type   Process name                              GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|  No running processes found                                                             |
++-----------------------------------------------------------------------------------------+
+/work/mgalexan/miniconda3/envs/working-env/bin/python
+torch: 2.6.0+cu124
+CUDA available: True
+GPU: NVIDIA H100 80GB HBM3
+Training on 58564 samples
+Training on device cuda
+Begin training at 2025-08-14 16:13:30.927110
+Progess 0%Progess 1%Progess 2%Progess 3%Progess 4%Progess 5%Progess 6%Progess 7%Progess 8%Progess 9%Progess 10%Progess 11%Progess 12%Progess 13%Progess 14%Progess 15%Progess 16%Progess 17%Progess 18%Progess 19%Progess 20%Progess 21%Progess 22%Progess 23%Progess 24%Progess 25%Progess 26%Progess 27%Progess 28%Progess 29%Progess 30%Progess 31%Progess 32%Progess 33%Progess 34%Progess 35%Progess 36%Progess 37%Progess 38%Progess 39%Progess 40%Progess 41%Progess 42%Progess 43%Progess 44%Progess 45%Progess 46%Progess 47%Progess 48%Progess 49%Progess 50%Progess 51%Progess 52%Progess 53%Progess 54%Progess 55%Progess 56%Progess 57%Progess 58%Progess 59%Progess 60%Progess 61%Progess 62%Progess 63%Progess 64%Progess 65%Progess 66%Progess 67%Progess 68%Progess 69%Progess 70%Progess 71%Progess 72%Progess 73%Progess 74%Progess 75%Progess 76%Progess 77%Progess 78%Progess 79%Progess 80%Progess 81%Progess 82%Progess 83%Progess 84%Progess 85%Progess 86%Progess 87%Progess 88%Progess 89%Progess 90%Progess 91%Progess 92%Progess 93%Progess 94%Progess 95%Progess 96%Progess 97%Progess 98%Progess 99%[1;34mwandb[0m: 
+[1;34mwandb[0m: 🚀 View run [33mtoasty-darkness-390[0m at: [34mhttps://wandb.ai/mgalexan-university-of-waterloo/NP-PINN/runs/vwronnpd[0m
+[1;34mwandb[0m: Find logs at: [1;35m../../../mnt/hpc/work/mgalexan/NP-PINN/wandb/run-20250814_161330-vwronnpd/logs[0m

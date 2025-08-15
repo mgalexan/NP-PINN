@@ -4,7 +4,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from Util.evaluate_function import evaluate_env
-plt.style.use("ggplot")
 
 def model_concplot(model: ForwardPINN, name, time: float, save_ext):
 

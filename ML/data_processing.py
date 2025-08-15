@@ -42,7 +42,7 @@ class ConcData(Dataset):
         return len(self.coords)
 
 class SparseConcData(Dataset):
-    def __init__(self, name, times):
+    def __init__(self, name, times, sample_ratio):
         super().__init__()
         self.device = t.device("cuda" if t.cuda.is_available() else "cpu")
         coord_full = t.load("./Data/Torch/" + name + "_torchcoord.pt")
@@ -63,6 +63,13 @@ class SparseConcData(Dataset):
 
         self.concs = t.cat(concs, 0).to(self.device)
         self.coords = t.cat(coords, 0).to(self.device)
+
+        k = int(len(self.concs) * sample_ratio)
+
+        indices = t.randperm(self.concs.size(0))[:k]
+        
+        self.concs = self.concs[indices]
+        self.coords = self.coords[indices]
         
 
     def __getitem__(self, index):
@@ -114,7 +121,7 @@ def get_loaders(input, p: MLParams, sample_ratio = 1.0, data_type: str = "concen
         data = PDatata(input[0], input[1], sample_ratio)
     
     elif data_type == "concentration_sparse":
-        data = SparseConcData(input[0], input[1])
+        data = SparseConcData(input[0], input[1], sample_ratio)
 
     
     size_train = int(p.params["train_test_split"] * len(data))

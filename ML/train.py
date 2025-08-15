@@ -90,7 +90,7 @@ def train_model(model: ForwardPINN, p: MLParams, train_loader: t.utils.data.Data
         Phi_N = compute_Phi_N(P, Pe_ratio, phi_L, SV, tumor, coords, p_sim).detach()
 
     
-        im = plt.scatter(coords[:, 1].cpu().detach().numpy(), coords[:, 2].cpu().detach().numpy(), c= div_v_i.cpu().numpy())
+        im = plt.scatter(coords[:, 1].cpu().detach().numpy(), coords[:, 2].cpu().detach().numpy(), c= Phi_C.cpu().numpy())
         plt.colorbar(im)
         plt.savefig("./Plots/test_scatter.png")
         def loss_fn(data, train_out):
@@ -217,6 +217,7 @@ def train_model(model: ForwardPINN, p: MLParams, train_loader: t.utils.data.Data
     else:
         raise NotImplementedError("Error: unsupported optimizer " + p["opt"])
     
+    scheduler = t.optim.lr_scheduler.ExponentialLR(opt, 0.999)
 
     # Prepare wandb run
     if use_wandb:
@@ -234,6 +235,7 @@ def train_model(model: ForwardPINN, p: MLParams, train_loader: t.utils.data.Data
         phys_weight = p["phys_weight"]
         p["phys_weight"] = 0
 
+    b_count = 0
     for epoch in tqdm(range(num_epochs), disable= not(verbose)):
 
         for batch in train_loader:
@@ -253,14 +255,19 @@ def train_model(model: ForwardPINN, p: MLParams, train_loader: t.utils.data.Data
             if use_wandb:
                 run.log(loss_dict)
             if p["save_best"]:
-                if loss_dict["total_loss"] < best_loss:
+                if (loss_dict["total_loss"] < best_loss) & (epoch > p["phys_start"]):
                     t.save(model.state_dict(), "./Models/checkpoint_model.pt")
-                    best_loss = p["save_best"]
+                    best_loss = loss_dict["total_loss"]
+            if b_count <= 2000:
+                scheduler.step()
+                b_count += 1
         if not(verbose):
             if epoch % (num_epochs // 100) == 0:
                 print(f"Progess {epoch * 100 // num_epochs}%", end= "\r", flush= True)   
         if p["phys_start"] == epoch:
             p["phys_weight"] = phys_weight
+        
+        
 
         
 

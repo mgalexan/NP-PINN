@@ -7,36 +7,39 @@ from Environment.env_class import ParamSpace
 from Environment.geometry import GeometrySpace
 from Environment.flags import SphericalFlag
 from Util.param_interp import FieldWrapper, GradWrapper
-from ML.plot_model import model_concplot, model_p_plot
-from Physics.calculate_pressure import calculate_pressure, model_conc_anim
+from ML.plot_model import model_concplot, model_p_plot, model_conc_anim
+from Physics.calculate_pressure import calculate_pressure
 import torch as t
 import numpy as np
 import sys
 np.set_printoptions(threshold=sys.maxsize)
 import matplotlib.pyplot as plt
 
-geo = GeometrySpace(4, 4, 0, 0.05, 0.05, 1800)
+geo = GeometrySpace(2.4, 2.4, 0, 0.02, 0.1, 18000)
 geo.get_mesh()
 
 env = ParamSpace(geo)
 
 env.open_params("./Config/sim_params.json")
 
-env.add_flag(SphericalFlag([2, 2], 1))
+env.add_flag(SphericalFlag([1.2, 1.2], 1))
 env.compile_flags()
 env.get_param_arrays()
 
+P_i = calculate_pressure(env, "neumann")
+
+
 p = MLParams("./Config/ml_pressure_params.json")
 P_model = ForwardPINN(env, p)
+#p_loader, _ = get_loaders((P_i, env), p, 1.0, "pressure")
+#train_model(P_model, p, p_loader, True, False)
 
+#t.save(P_model.state_dict(), "./Models/less_back_P_model.pt")
 
+#model_p_plot(P_model, P_i, "less_back")
+#plt.clf()
 
-p_data, _ = get_loaders((P_i, env), p, 1.0, "pressure")
-
-train_model(P_model, p, p_data, True, True)
-model_p_plot(P_model, P_i, "fixed_P")
-'''
-P_model.load_state_dict(t.load("./Models/p_model.pt"))
+P_model.load_state_dict(t.load("./Models/less_back_P_model.pt"))
 
 P_model = FieldWrapper(P_model)
 
@@ -46,18 +49,23 @@ v_i = GradWrapper(P_model)
 p = MLParams("./Config/ml_params.json")
 
 model = ForwardPINN(env, p)
+#model.alpha = t.nn.parameter.Parameter(20 * t.ones(1))
 
 env.torch_funcs["P_i"] = P_model
 env.torch_funcs["v_i"] = v_i
 
-train_data, test_data = get_loaders(["ml_data"], p, 0.01, data_type= "concentration")
+train_data, test_data = get_loaders(["less_background", [0, 3600, 9000, 12000, 18000]], p, 1, data_type= "concentration_sparse")
 
+state = t.load("./Models/pt_model.pt")
+
+#model.load_state_dict(state)
 
 train_model(model, p, train_data, use_wandb= True, verbose= False)
 
 t.save(model.state_dict(), "./Models/conc_model.pt")
 
-#model_concplot(model, "ml_data", 1800, "test")
-'''
+model.load_state_dict(t.load("./Models/checkpoint_model.pt"))
+
+model_conc_anim(model, "less_background", "test")
 
 
