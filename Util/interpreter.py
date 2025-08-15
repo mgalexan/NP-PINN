@@ -16,7 +16,7 @@ plt.style.use("ggplot")
 
 class Interpreter():
 
-    def __init__(self, env: ParamSpace, C: tuple, P_i: fem.Function, sample_rate = 100, labels = ["C_N", "C_F", "C_INT"], labels_tex = [r"$C_N$", r"$C_F$", r"$C_{INT}$"]):
+    def __init__(self, env: ParamSpace, C: tuple, P_i: fem.Function = None, sample_rate = 100, labels = ["C_N", "C_F", "C_INT"], labels_tex = [r"$C_N$", r"$C_F$", r"$C_{INT}$"]):
 
         self.comm = MPI.COMM_WORLD
         self.rank = self.comm.Get_rank()
@@ -26,8 +26,9 @@ class Interpreter():
         self.dim = self.geometry.dim
         self.sample_rate = sample_rate
         
-        self.load_P(P_i)
+        
         self.load_C(C, sample_rate)
+        self.load_P(P_i)
 
         self.midpoint = self.geometry.shape_x // 2
 
@@ -74,7 +75,10 @@ class Interpreter():
 
     def load_P(self, P_i: fem.Function):
         self.P_i = P_i
-        self.P_i_val = evaluate_env(P_i, self.geometry)[0]
+        if self.P_i:
+            self.P_i_val = evaluate_env(P_i, self.geometry)[0]
+        else:
+            self.P_i_val = np.zeros_like(self.C_vals[0])
 
     def load_C(self, C: tuple, sample_rate = 100):
         
@@ -207,9 +211,9 @@ class Interpreter():
             plt.clf()
         
         if do_frac_killed:
-
-            C_INT_arr = np.sum(np.array(self.C_vals[-1]), sum_idx) * (self.geometry.ds ** self.geometry.dim)
+            C_INT_arr = np.array(self.C_vals[-1])
             FKC = 1 - np.exp(- self.env.params["omega"] * C_INT_arr)
+            FKC = np.sum(FKC, sum_idx) * (self.geometry.ds ** self.geometry.dim)
             plt.plot(self.tvals, FKC, linewidth= 0.5)
             plt.title(r"Fraction of Killed Cells by time")
             plt.xlabel("time (s)")
@@ -270,8 +274,8 @@ class Interpreter():
     def image_animation(self, save_ext: str, fps = 30, rate= 1):
         
         tickstep = 1 / self.geometry.ds
-        x_ticks = np.arange(0, self.P_i_val.shape[0], tickstep)
-        y_ticks = np.arange(0, self.P_i_val.shape[1], tickstep)
+        x_ticks = np.arange(0, self.C_vals[0][0].shape[0], tickstep)
+        y_ticks = np.arange(0, self.C_vals[0][0].shape[1], tickstep)
         x_tick_labels = range(len(x_ticks))
         y_tick_labels = range(len(y_ticks))
 
@@ -284,7 +288,7 @@ class Interpreter():
                 fig  = plt.imshow(self.C_vals[i][n], vmin= 0, vmax= min(max_c, 5))
                 plt.xticks(x_ticks, x_tick_labels)
                 plt.yticks(y_ticks, y_tick_labels)
-                plt.title(f"Concentration at time t= {n * self.dt * self.sample_rate}")
+                plt.title(f"Concentration at time t= {int(n * self.dt * self.sample_rate)}")
                 plt.colorbar(fig, label= self.labels_tex[i])
                 plt.xlabel("x (cm)")
                 plt.ylabel("y (cm)")

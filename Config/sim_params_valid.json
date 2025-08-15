@@ -57,7 +57,7 @@
 
     "K_rel" : {
         "normal" : 0.0,
-        "tumor" : 1e-3
+        "tumor" : 1e-4
     },
 
     "alpha" : 20,
