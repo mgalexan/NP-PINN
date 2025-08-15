@@ -49,11 +49,11 @@ class ParamSpace:
             self.flag_fun_lists[tag] = [to_add]
 
     def compile_flags(self) -> None:
-        """ Internally compile a list of locations of tumors for modelling """
+        """ Internally compile a list of locations of flags for modelling """
 
         flag_locs = {}
         for k in self.flag_fun_lists.keys():
-            flag_locs[k] = np.zeros(self.geometry.shape).astype(np.bool_)
+            flag_locs[k] = np.zeros(self.geometry.shape)
 
             for i in range(len(self.flag_fun_lists[k])):
                 check_array = self.flag_fun_lists[k][i].apply_flag(self.geometry)

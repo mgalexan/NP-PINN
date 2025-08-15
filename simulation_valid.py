@@ -2,7 +2,7 @@ from Environment.geometry import GeometrySpace
 from Environment.env_class import ParamSpace
 from Environment.flags import SphericalFlag, EdgeFlag2D, SphericalTaperingFlag
 from Physics.calculate_pressure import calculate_pressure
-from Physics.calculate_conc import calculate_concentrations
+from Physics.calculate_conc_valid import calculate_concentrations
 from Util.interpreter import Interpreter
 from Util.evaluate_function import evaluate_env
 import numpy as np
@@ -20,18 +20,20 @@ rank = comm.Get_rank()
 
 
     
-name = "less_background"
+name = "pH_test"
 
-test_geo = GeometrySpace(4, 4, 0, 0.02, 0.1, 18000)
+test_geo = GeometrySpace(5, 5, 0, 0.02, 0.1, 36000)
 
 test = ParamSpace(test_geo)
 
 
-test.open_params("./Config/sim_params.json")
+test.open_params("./Config/sim_params_sr.json")
 
 
-test.add_flag(SphericalFlag([2, 2], 1.0))
+test.add_flag(SphericalFlag([2.5, 2.5], 1.0))
 test.add_flag(EdgeFlag2D(0.1), "edge")
+test.add_flag(SphericalTaperingFlag([2.5, 2.5], 1.0), "pH")
+#test.add_flag(SphericalFlag([2.5, 2.5], 0.6), "necrotic")
 
 if rank == 0:
     print("Refining Mesh...", flush=True)
@@ -56,25 +58,25 @@ if rank == 0:
 
     print("Interpreting Results...", flush=True)
 
-labels = ["C_N", "C_F", "C_INT"]
-labels_tex = [r"$C_N$", r"$C_F$", r"$C_{INT}$"]
+labels = ["C_N", "C_F", "C_B", "C_INT"]
+labels_tex = [r"$C_N$", r"$C_F$", r"$C_B$", r"$C_{INT}$"]
 
 interp = Interpreter(test, C, P_i, sample_rate= 500, labels=labels, labels_tex=labels_tex)
 
 comm.barrier()
 
 if rank == 0:
-    interp.crop([2, 2], 1.2)
+    interp.crop([2.5, 2.5], 2)
 
-    interp.save_matrix(name)
-    interp.save_tensor(name)
+    #interp.save_matrix(name)
+    #interp.save_tensor(name)
     print("Done!", flush=True)
 
 
     print("Making Plots...", flush=True)
 
     interp.pressure_plot(name)
-    interp.time_center_plots(name, False)
+    interp.time_center_plots(name, True)
     interp.image_animation(name)
 
 

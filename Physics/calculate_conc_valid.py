@@ -12,7 +12,7 @@ from ufl import FacetNormal, CellDiameter, sqrt, inner
 from petsc4py.PETSc import ScalarType
 from petsc4py import PETSc
 
-from Physics.equations import comp_Phi_C, comp_Phi_CF, C_P_val
+from Physics.equations import comp_Phi_C, comp_Phi_CF, C_P_val, pH_to_K_rel
 from Environment.env_class import ParamSpace
 from Util.evaluate_function import evaluate_env
 
@@ -110,6 +110,15 @@ def calculate_concentrations(env: ParamSpace, P_i: fem.function.Function, bounda
 
     tau = env.params["tau"]
 
+    try:
+        p["K_rel"].x.array[:] = pH_to_K_rel(p["pH"].x.array + 6.2)
+    except KeyError:
+        pass
+
+
+    
+
+
     v_i = - p["kappa"] * grad(P_i) * edge
 
     C_P = fem.Constant(msh, C_P_val(0, tau))
@@ -119,12 +128,17 @@ def calculate_concentrations(env: ParamSpace, P_i: fem.function.Function, bounda
 
     P_i.x.scatter_forward()
     
+    try:
+        necrotic = p["necrotic"]
+    except KeyError:
+        necrotic = 0
+
     # Assemble a Bilinear form for solving: 
     a  = (  (1/dt) * C_Nt * w_N
       + p["D_N"] * dot(grad(C_Nt), grad(w_N))
       - dot(v_i, grad(w_N)) * C_Nt
       + p["K_rel"] * C_Nt * w_N 
-      + Phi_CF * C_Nt * w_N * (1 - p["necrotic"])) * dx 
+      + Phi_CF * C_Nt * w_N * (1 - necrotic)) * dx 
                
     a += (  (1/dt) * C_Ft * w_F
         + p["D_F"] * dot(grad(C_Ft), grad(w_F))
@@ -149,7 +163,7 @@ def calculate_concentrations(env: ParamSpace, P_i: fem.function.Function, bounda
 
     L = ((1/dt) * C_Nn * w_N) * dx
     
-    L +=  (Phi_C * C_P * w_N * (1- p["necrotic"])) * dx
+    L +=  (Phi_C * C_P * w_N * (1- necrotic)) * dx
 
     L += ( (1/dt) * C_Fn * w_F ) * dx
 
