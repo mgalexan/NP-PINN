@@ -288,7 +288,7 @@ class Interpreter():
                 fig  = plt.imshow(self.C_vals[i][n], vmin= 0, vmax= min(max_c, 5))
                 plt.xticks(x_ticks, x_tick_labels)
                 plt.yticks(y_ticks, y_tick_labels)
-                plt.title(f"Concentration at time t= {int(n * self.dt * self.sample_rate)}")
+                plt.title(f"Concentration at time t= {round(n * self.dt * self.sample_rate, 2)}")
                 plt.colorbar(fig, label= self.labels_tex[i])
                 plt.xlabel("x (cm)")
                 plt.ylabel("y (cm)")
@@ -303,6 +303,6 @@ class Interpreter():
             # Create animation: frames = number of timesteps
             ani = FuncAnimation(fig, update, frames=range(0, len(self.C_vals[0]), 1), blit=False)
 
-            ani.save("./Animations/"+ save_ext +"_animation_" +  self.labels[i] + ".mp4", fps=30, dpi=150, extra_args=['-vcodec', 'libx264'])
+            ani.save("./Animations/"+ save_ext +"_animation_" +  self.labels[i] + ".mp4", fps=fps, dpi=150, extra_args=['-vcodec', 'libx264'])
         
         plt.clf()
