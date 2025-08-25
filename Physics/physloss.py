@@ -130,7 +130,15 @@ def C_INT_Loss(coords, C_INT, C_F, K_degINT, K_INT):
 
     return t.mean(t.square(lhs - rhs))
 
+def N_Loss(coords, N, rho, K, D):
 
+    lhs = diff_t(N, coords)
+
+    rhs = divergence(D * gradient(N, coords), coords)
+
+    rhs += rho * N (1 - N / K)
+
+    return t.mean(t.square(lhs - rhs))
 
 
 

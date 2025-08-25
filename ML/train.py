@@ -202,7 +202,46 @@ def train_model(model: ForwardPINN, p: MLParams, train_loader: t.utils.data.Data
 
             return total_loss, loss_dict
 
+    elif p["loss"] == "Growth_Loss_Forward":
+
+        data_loss_fn = MSELoss()
+
+        p_sim = model.env.torch_funcs
+        
+        coords = model.coloc
+       
+        D = p_sim["D"](coords).detach()
+        K = p_sim["K"](coords).detach()
+        rho = p_sim["rho"](coords).detach()
+
+        def loss_fn(data, train_out):
+
+            data_loss = data_loss_fn(data, train_out)
+            if p["phys_weight"] > 0: 
+                N = model.forward_unscaled(coords)
                 
+                
+                N_loss = p["phys_weight"] * N_Loss(coords, N, rho, K, D)
+                
+
+                total_loss = data_loss + N_loss
+
+                loss_dict = {
+                    "total_loss" : total_loss.item(),
+                    "log_loss" : np.log10(total_loss.item()),
+                    "data_loss" : data_loss.item(),
+                    "N_loss" : N_loss.item(),
+                }
+            
+            else: 
+                total_loss = data_loss
+                loss_dict = {
+                    "total_loss" : total_loss.item(),
+                    "log_loss" : np.log10(total_loss.item()),
+                    "data_loss" : data_loss.item(),
+                }
+
+            return total_loss, loss_dict      
 
 
     else:
