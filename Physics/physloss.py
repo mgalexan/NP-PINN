@@ -1,4 +1,5 @@
 import torch as t
+import math as m
 
 def gradient(tens, coords, type= "temporal"):
     
@@ -136,12 +137,66 @@ def N_Loss(coords, N, rho, K, D):
 
     rhs = divergence(D * gradient(N, coords), coords)
 
-    rhs += rho * N (1 - N / K)
+    rhs += rho * N * (1 - N / K)
 
     return t.mean(t.square(lhs - rhs))
 
 
+def nano_physics(d, alpha, p):
 
+    # Compute lambda
+
+    lam = d / p["d_0"]
+
+    exps = t.arange(0, 5)       # powers 0–4
+    exps_minus = t.arange(1, 3) # powers 1–2
+
+    lam_exp = lam ** exps
+    minus_lam_exp = (1 - lam) ** exps_minus
+
+    a_vals = t.tensor([p["a_1"], p["a_2"], p["a_3"], p["a_4"], p["a_5"], p["a_6"], p["a_7"]])
+    b_vals = t.tensor([p["b_1"], p["b_2"], p["b_3"], p["b_4"], p["b_5"], p["b_6"], p["b_7"]])
+
+    leading_lambda = (9/4) * (t.pi**2) * t.sqrt(t.tensor(2.0)) * (1 - lam) ** (-2.5)
+
+    K_t = leading_lambda * (1 + t.dot(a_vals[0:2], minus_lam_exp)) + t.dot(a_vals[2:], lam_exp)
+    K_s = leading_lambda * (1 + t.dot(b_vals[0:2], minus_lam_exp)) + t.dot(b_vals[2:], lam_exp)
+
+
+    print(K_t)
+    print(K_s)
+
+    F = minus_lam_exp[1]
+
+    # Compute W and H
+
+    W = F * (2 - F) * K_s / (2 * K_t)
+    H = 6 * m.pi * F / K_t
+
+    # Compute D_0
+
+    D_0 = p["K_b"] * p["T"] / (3 * m.pi * p["eta"] * d)
+
+    # Compute a, b, sigma for D:
+    sigma = "TODO"
+    lambda_prime = "TODO"
+
+
+    #a = m.pi
+    #b = 0.174 * m.log(59.6 / lambda_prime)
+    #f = (1 + lambda_prime) / (2 * sigma)
+
+    # Now compute the parameters we need to return
+
+    sigma_f = 1 - W
+
+    P = p["gamma"] * H * D_0 / p["L"]
+
+    K_rel = 4.2e-5 / (alpha * (1 + d))
+
+    D = D_0 #* t.exp( - a * sigma ** b - 0.84 * f ** 1.09)
+
+    return sigma_f, P, K_rel, D, alpha
 
 
 

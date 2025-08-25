@@ -11,7 +11,7 @@
     "lr" : 1e-3,
     "momentum" : 0.0,
     "num_epochs" : 4000,
-    "phys_weight" : 1e10,
+    "phys_weight" : 1000,
     "num_coloc" : 20000,
     "coloc_method" : "grid_time_sparse",
     "save_best" : 1,

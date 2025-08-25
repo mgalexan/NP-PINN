@@ -17,6 +17,9 @@ def train_model(model: ForwardPINN, p: MLParams, train_loader: t.utils.data.Data
 
     device = t.device("cuda" if t.cuda.is_available() else "cpu")
     print("Training on device", device)
+    # Prepare wandb run
+    if use_wandb:
+        run = wandb.init(config= p, project= "NP-PINN")
 
     model = model.to(device)
 
@@ -32,8 +35,9 @@ def train_model(model: ForwardPINN, p: MLParams, train_loader: t.utils.data.Data
                 "total_loss" : total_loss,
                 "log_loss" : total_log_loss,
             }
-
-            return total_loss, loss_dict
+            if use_wandb:
+                run.log(loss_dict)
+            return total_loss
 
     elif p["loss"] == "Pressure_Loss":
         data_loss_fn = MSELoss()
@@ -52,8 +56,10 @@ def train_model(model: ForwardPINN, p: MLParams, train_loader: t.utils.data.Data
                 "data_loss" : data_loss_item,
                 "physics_loss" : phys_loss_item
             }
+            if use_wandb:
+                    run.log(loss_dict)
 
-            return total_loss, loss_dict
+            return total_loss
 
     elif p["loss"] == "Conc_Loss_Forward":
 
@@ -90,8 +96,12 @@ def train_model(model: ForwardPINN, p: MLParams, train_loader: t.utils.data.Data
         Phi_N = compute_Phi_N(P, Pe_ratio, phi_L, SV, tumor, coords, p_sim).detach()
 
     
-        im = plt.scatter(coords[:, 1].cpu().detach().numpy(), coords[:, 2].cpu().detach().numpy(), c= Phi_C.cpu().numpy())
-        plt.colorbar(im)
+        im = plt.scatter(coords[:, 1].cpu().detach().numpy(), coords[:, 2].cpu().detach().numpy(), c= phi_B.cpu().numpy())
+        cbar = plt.colorbar(im,)
+        cbar.set_label(r"$phi_B$")
+        plt.xlabel("x (cm)")
+        plt.ylabel("y (cm)")
+        plt.title(r"Colocation Values of $\phi_B$")
         plt.savefig("./Plots/test_scatter.png")
         def loss_fn(data, train_out):
 
@@ -125,8 +135,10 @@ def train_model(model: ForwardPINN, p: MLParams, train_loader: t.utils.data.Data
                     "log_loss" : np.log10(total_loss.item()),
                     "data_loss" : data_loss.item(),
                 }
+            if use_wandb:
+                    run.log(loss_dict)
 
-            return total_loss, loss_dict
+            return total_loss
 
     elif p["loss"] == "Conc_Loss_Backward":
 
@@ -161,19 +173,25 @@ def train_model(model: ForwardPINN, p: MLParams, train_loader: t.utils.data.Data
                 C_F = vals[:,1].unsqueeze(-1)
                 C_INT = vals[:,2].unsqueeze(-1)
 
-                D_N = p_sim["D_N"](coords).detach()
+                #D_N = p_sim["D_N"](coords).detach()
                 K_rel = p_sim["K_rel"](coords).detach()
                 P = p_sim["P"](coords).detach()
-                sigma_f = p_sim["sigma_f"](coords).detach()
-                
                 tau = p_sim["tau"](coords).detach()
-                
-                alpha = model.alpha
-                
-                Pe_ratio = compute_Pe_ratio(SV, P, sigma_f, phi_B).detach()
+                sigma_f = p_sim["sigma_f"](coords).detach()
+                alpha = p_sim["alpha"](coords).detach()
 
-                Phi_C = compute_Phi_C(P, sigma_f, tau, Pe_ratio, phi_B, SV, tumor, coords).detach()
-                Phi_N = compute_Phi_N(P, Pe_ratio, phi_L, SV, tumor, coords, p_sim).detach()
+                #sigma_f = model.sigma_f
+                #alpha = model.alpha
+                #K_rel = model.k_rel * p_sim["tumor"](coords)
+                #tau_dimless = model.tau
+                #T0 = 10000
+                #tau = T0 * t.exp(tau_dimless)
+                D_N = p_sim["tumor"](coords) * (model.D_normal - model.D_tumor) + model.D_normal
+                
+                Pe_ratio = compute_Pe_ratio(SV, P, sigma_f, phi_B)
+
+                Phi_C = compute_Phi_C(P, sigma_f, tau, Pe_ratio, phi_B, SV, tumor, coords)
+                Phi_N = compute_Phi_N(P, Pe_ratio, phi_L, SV, tumor, coords, p_sim)
 
                 
                 C_N_loss = p["phys_weight"] * C_N_Loss(coords, C_N, D_N, v_i, div_v_i, K_rel, Phi_C, Phi_N)
@@ -189,7 +207,12 @@ def train_model(model: ForwardPINN, p: MLParams, train_loader: t.utils.data.Data
                     "C_N_loss" : C_N_loss.item(),
                     "C_F_loss" : C_F_loss.item(),
                     "C_INT_loss" : C_INT_loss.item(),
-                    "alpha" : alpha.item()
+                    "D_N Normal" : model.D_normal.item(),
+                    "D_N Tumor" : model.D_tumor.item(),
+                    #"alpha" : alpha.item(),
+                    #"K_rel" : model.k_rel.item(),
+                    #"tau" : tau.item()
+                    #"sigma_f" : sigma_f.item()
                 }
             
             else: 
@@ -199,8 +222,10 @@ def train_model(model: ForwardPINN, p: MLParams, train_loader: t.utils.data.Data
                     "log_loss" : np.log10(total_loss.item()),
                     "data_loss" : data_loss.item(),
                 }
+            if use_wandb:
+                    run.log(loss_dict)
 
-            return total_loss, loss_dict
+            return total_loss
 
     elif p["loss"] == "Growth_Loss_Forward":
 
@@ -240,9 +265,10 @@ def train_model(model: ForwardPINN, p: MLParams, train_loader: t.utils.data.Data
                     "log_loss" : np.log10(total_loss.item()),
                     "data_loss" : data_loss.item(),
                 }
+                if use_wandb:
+                    run.log(loss_dict)
 
-            return total_loss, loss_dict      
-
+            return total_loss
 
     else:
         raise NotImplementedError(f"Error: unsupported loss " + p["loss"])
@@ -252,23 +278,32 @@ def train_model(model: ForwardPINN, p: MLParams, train_loader: t.utils.data.Data
     
     elif p["opt"] == "SGD":
         opt = optim.SGD(model.parameters(), p["lr"], p["momentum"])
+
+    elif p["opt"] == "LBFGS":
+        opt = optim.LBFGS(model.parameters(), p["lr"])
     
     else:
         raise NotImplementedError("Error: unsupported optimizer " + p["opt"])
     
     scheduler = t.optim.lr_scheduler.ExponentialLR(opt, 0.999)
 
-    # Prepare wandb run
-    if use_wandb:
-        run = wandb.init(config= p, project= "NP-PINN")
+    
 
     num_epochs = p["num_epochs"]
 
     # Main training loop
     print("Begin training at " + str(datetime.datetime.now()))
     
+    if p["load_checkpoint"]:
+        state = t.load("./Models/checkpoint_model.pt")
+        model.load_state_dict(state)
+        print("Loaded Checkpoint")
+    
     model.train()
-    best_loss = 100
+
+    t.autograd.set_detect_anomaly(True)
+
+    best_loss = 1000
 
     if p["phys_start"] > 0:
         phys_weight = p["phys_weight"]
@@ -284,19 +319,28 @@ def train_model(model: ForwardPINN, p: MLParams, train_loader: t.utils.data.Data
             data_scaled = data * p["output_scaling"]
 
             train_out = model(locs)
+            
+            
+            if p["opt"] == "LBFGS":
+                def closure():
+                    opt.zero_grad()
+                    train_out = model(locs)
+                    loss = loss_fn(train_out, data_scaled)
+                    loss.backward()
+                    return loss
+                batch_loss = opt.step(closure)
 
-            batch_loss, loss_dict = loss_fn(data_scaled, train_out)
+            else:
+                batch_loss = loss_fn(data_scaled, train_out)
+                opt.zero_grad()
+                batch_loss.backward()
+                opt.step()
 
-            opt.zero_grad()
-            batch_loss.backward()
-            opt.step()
-
-            if use_wandb:
-                run.log(loss_dict)
+            
             if p["save_best"]:
-                if (loss_dict["total_loss"] < best_loss) & (epoch > p["phys_start"]):
+                if (batch_loss.item() < best_loss) & (epoch > p["phys_start"]):
                     t.save(model.state_dict(), "./Models/checkpoint_model.pt")
-                    best_loss = loss_dict["total_loss"]
+                    best_loss = batch_loss.item()
             if b_count <= 2000:
                 scheduler.step()
                 b_count += 1

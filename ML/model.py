@@ -47,8 +47,12 @@ class ForwardPINN(nn.Module):
             self.get_coloc_points(param_obj["coloc_method"], param_obj["num_coloc"])
         
         if param_obj["loss"] == "Conc_Loss_Backward":
-            self.alpha = nn.parameter.Parameter(20 * t.ones(1))
-
+            self.alpha = nn.parameter.Parameter(t.ones(1))
+            self.tau = nn.parameter.Parameter(t.ones(1))
+            self.sigma_f = nn.parameter.Parameter(t.zeros(1))
+            self.k_rel = nn.parameter.Parameter(1e-5 * t.ones(1))
+            self.D_tumor = nn.parameter.Parameter(1e-8 * t.ones(1))
+            self.D_normal = nn.parameter.Parameter(1e-8 * t.ones(1))
         self.to(self.device)
 
     def get_coloc_points(self, method= "grid", num_points = 1000):
@@ -116,6 +120,13 @@ class ForwardPINN(nn.Module):
             self.coloc = grid.to(self.device).requires_grad_(True)
             print(self.coloc.isnan().any())
 
+        elif method == "random":
+            xvals = t.rand(num_points) * self.env.geometry.width
+            yvals = t.rand(num_points) * self.env.geometry.height
+            tvals = t.rand(num_points) * self.env.geometry.T
+
+            coords = t.stack([tvals, xvals, yvals], -1).to(self.device).requires_grad_(True)
+            self.coloc = coords
 
 
     def make_layers(self) -> nn.Sequential:
