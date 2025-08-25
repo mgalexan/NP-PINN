@@ -22,7 +22,7 @@ rank = comm.Get_rank()
     
 name = "test_growth"
 
-test_geo = GeometrySpace(4, 4, 0, 0.02, 0.01, 1)
+test_geo = GeometrySpace(6, 6, 0, 0.02, 0.01, 60)
 test_geo.get_mesh()
 
 test = ParamSpace(test_geo)
@@ -31,7 +31,7 @@ test = ParamSpace(test_geo)
 test.open_params("./Config/growth_params.json")
 
 
-test.add_flag(SphericalFlag([2, 2], 0.1))
+test.add_flag(SphericalFlag([3, 3], 0.5))
 test.compile_flags()
 
 
@@ -41,7 +41,7 @@ test.broadcast_serial_mesh()
 
 if rank == 0:
     print("Computing Growth...", flush=True)
-N = calculate_growth(test, "neumann", sample_rate=1, verbose= True)
+N = calculate_growth(test, "neumann", sample_rate=10, verbose= True)
 if rank == 0:
     print("Done!", flush=True)
 
@@ -50,12 +50,13 @@ if rank == 0:
 labels = ["N"]
 labels_tex = [r"$N$"]
 
-interp = Interpreter(test, (N,), sample_rate= 100, labels=labels, labels_tex=labels_tex)
+interp = Interpreter(test, (N,), sample_rate= 10, labels=labels, labels_tex=labels_tex)
 
 comm.barrier()
 
 if rank == 0:
-    
+    interp.save_matrix(name)
+    interp.save_tensor(name)
     print("Done!", flush=True)
 
 
