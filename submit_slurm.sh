@@ -2,9 +2,9 @@
 #SBATCH --mail-user=mgalexan@uwaterloo.ca
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --job-name=NP-PINN
-#SBATCH --partition=gpu_a100
-#SBATCH --gres=gpu:a100:1
-#SBATCH --time=00:45:00
+#SBATCH --partition=gpu_h100
+#SBATCH --gres=gpu:h100:1
+#SBATCH --time=05:00:00
 #SBATCH --mem=8GB
 #SBATCH --cpus-per-task=2
 #SBATCH --output=./GPU_job.out

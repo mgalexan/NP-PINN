@@ -161,7 +161,7 @@ def train_model(model: ForwardPINN, p: MLParams, train_loader: t.utils.data.Data
         K_degINT = p_sim["K_deg-INT"](coords).detach()
         phi_B = compute_phi_B(P_i, coords, p_sim).detach()
         phi_L = compute_phi_L(P_i, coords, p_sim).detach()
-
+        p_nano = MLParams("./Config/nano_physics.json")
         
         def loss_fn(data, train_out):
 
@@ -173,20 +173,28 @@ def train_model(model: ForwardPINN, p: MLParams, train_loader: t.utils.data.Data
                 C_F = vals[:,1].unsqueeze(-1)
                 C_INT = vals[:,2].unsqueeze(-1)
 
-                #D_N = p_sim["D_N"](coords).detach()
-                K_rel = p_sim["K_rel"](coords).detach()
-                P = p_sim["P"](coords).detach()
+                D_N = p_sim["D_N"](coords).detach()
+                #K_rel = p_sim["K_rel"](coords).detach()
+                #P = p_sim["P"](coords).detach()
                 tau = p_sim["tau"](coords).detach()
-                sigma_f = p_sim["sigma_f"](coords).detach()
-                alpha = p_sim["alpha"](coords).detach()
+                #sigma_f = p_sim["sigma_f"](coords).detach()
+                alpha = 20#model.alpha * 10
+                d = model.d * 10e-7
+                D_normal = 7e-8
+                P_normal = 2.02e-8
 
-                #sigma_f = model.sigma_f
-                #alpha = model.alpha
-                #K_rel = model.k_rel * p_sim["tumor"](coords)
+                
+
+
+                sigma_f, P_tumor, K_rel, D_tumor = nano_physics(d, alpha, p_nano, device)
+
+                #print(sigma_f, P_tumor, K_rel, D_tumor)
+                
                 #tau_dimless = model.tau
                 #T0 = 10000
                 #tau = T0 * t.exp(tau_dimless)
-                D_N = p_sim["tumor"](coords) * (model.D_normal - model.D_tumor) + model.D_normal
+                #D_N = p_sim["tumor"](coords) * (D_normal - D_tumor) + D_normal
+                P = p_sim["tumor"](coords) * (P_normal - P_tumor) + P_normal
                 
                 Pe_ratio = compute_Pe_ratio(SV, P, sigma_f, phi_B)
 
@@ -207,9 +215,8 @@ def train_model(model: ForwardPINN, p: MLParams, train_loader: t.utils.data.Data
                     "C_N_loss" : C_N_loss.item(),
                     "C_F_loss" : C_F_loss.item(),
                     "C_INT_loss" : C_INT_loss.item(),
-                    "D_N Normal" : model.D_normal.item(),
-                    "D_N Tumor" : model.D_tumor.item(),
-                    #"alpha" : alpha.item(),
+                    "d" : d,
+                    #"alpha" : alpha.item()
                     #"K_rel" : model.k_rel.item(),
                     #"tau" : tau.item()
                     #"sigma_f" : sigma_f.item()
@@ -280,7 +287,7 @@ def train_model(model: ForwardPINN, p: MLParams, train_loader: t.utils.data.Data
         opt = optim.SGD(model.parameters(), p["lr"], p["momentum"])
 
     elif p["opt"] == "LBFGS":
-        opt = optim.LBFGS(model.parameters(), p["lr"])
+        opt = optim.LBFGS(model.parameters(), p["lr"], history_size= 10)
     
     else:
         raise NotImplementedError("Error: unsupported optimizer " + p["opt"])

@@ -49,10 +49,7 @@ class ForwardPINN(nn.Module):
         if param_obj["loss"] == "Conc_Loss_Backward":
             self.alpha = nn.parameter.Parameter(t.ones(1))
             self.tau = nn.parameter.Parameter(t.ones(1))
-            self.sigma_f = nn.parameter.Parameter(t.zeros(1))
-            self.k_rel = nn.parameter.Parameter(1e-5 * t.ones(1))
-            self.D_tumor = nn.parameter.Parameter(1e-8 * t.ones(1))
-            self.D_normal = nn.parameter.Parameter(1e-8 * t.ones(1))
+            self.d = nn.parameter.Parameter(t.ones(1))
         self.to(self.device)
 
     def get_coloc_points(self, method= "grid", num_points = 1000):

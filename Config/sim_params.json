@@ -45,19 +45,19 @@
 
     "P" : {
         "normal" : 2.02e-8, 
-        "tumor" : 4.6e-8
+        "tumor" : 4.1567e-08
     },
 
     "D_N" : {
-        "normal" : 7e-8,
-        "tumor" : 4.52e-8
+        "normal" : 4.52e-8,
+        "tumor" : 7e-8
     },
 
-    "sigma_f" : 0.043,
+    "sigma_f" : 0.0433,
 
     "K_rel" : {
         "normal" : 0.0,
-        "tumor" : 2.1e-5
+        "tumor" : 2.0999958000084e-06
     },
 
     "alpha" : 20,

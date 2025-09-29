@@ -15,57 +15,52 @@ import sys
 np.set_printoptions(threshold=sys.maxsize)
 import matplotlib.pyplot as plt
 
-geo = GeometrySpace(6, 6, 0, 0.02, 0.01, 60)
+geo = GeometrySpace(2.4, 2.4, 0, 0.02, 0.1, 18000)
 geo.get_mesh()
 
 env = ParamSpace(geo)
 
-env.open_params("./Config/growth_params.json")
+env.open_params("./Config/sim_params_30.json")
 
-env.add_flag(SphericalFlag([3, 3], 0.5))
+env.add_flag(SphericalFlag([1.2, 1.2], 1.0))
 env.compile_flags()
 env.get_param_arrays()
 
 #P_i = calculate_pressure(env, "neumann")
 
 
-#p = MLParams("./Config/ml_pressure_params.json")
-#P_model = ForwardPINN(env, p)
+p = MLParams("./Config/ml_pressure_params.json")
+P_model = ForwardPINN(env, p)
 #p_loader, _ = get_loaders((P_i, env), p, 1.0, "pressure")
 #train_model(P_model, p, p_loader, True, False)
 
 #t.save(P_model.state_dict(), "./Models/less_back_P_model.pt")
-
+P_model.load_state_dict(t.load("./Models/less_back_P_model.pt"))
 #model_p_plot(P_model, P_i, "less_back")
-#plt.clf()
-
-#P_model.load_state_dict(t.load("./Models/less_back_P_model.pt"))
-
-#P_model = FieldWrapper(P_model)
-
-#v_i = GradWrapper(P_model)
+plt.clf()
 
 
-p = MLParams("./Config/ml_params_growth.json")
+
+P_model = FieldWrapper(P_model)
+
+v_i = GradWrapper(P_model)
+
+
+p = MLParams("./Config/ml_params.json")
 
 model = ForwardPINN(env, p)
-#model.alpha = t.nn.parameter.Parameter(20 * t.ones(1))
 
-#env.torch_funcs["P_i"] = P_model
-#env.torch_funcs["v_i"] = v_i
+env.torch_funcs["P_i"] = P_model
+env.torch_funcs["v_i"] = v_i
 
-train_data, test_data = get_loaders(["test_growth"], p, 0.002, data_type= "concentration")
-
-#state = t.load("./Models/pt_model.pt")
-
-#model.load_state_dict(state)
+train_data, test_data = get_loaders(["less_background_30"], p, 0.01, data_type= "concentration")
 
 train_model(model, p, train_data, use_wandb= True, verbose= False)
 
-t.save(model.state_dict(), "./Models/growth_model.pt")
+t.save(model.state_dict(), "./Models/conc_model.pt")
 
-#model.load_state_dict(t.load("./Models/checkpoint_model.pt"))
+model.load_state_dict(t.load("./Models/checkpoint_model.pt"))
 
-model_growth_anim(model, "test_growth", "test")
+model_conc_anim(model, "less_background_30", "test")
 
 
