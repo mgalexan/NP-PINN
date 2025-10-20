@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from Util.evaluate_function import evaluate_env
+from Physics.equations import p_anal
 
 def model_concplot(model: ForwardPINN, name, time: float, save_ext):
 
@@ -111,24 +112,32 @@ def model_p_plot(model: ForwardPINN, P_i, save_ext):
 
     fig.savefig("./Plots/" + save_ext + "_pressure_model.png")
 
-def model_p_lineplot(model: ForwardPINN, P_i, save_ext):
+def model_p_lineplot(model: ForwardPINN, P_i, save_ext, R, do_analytical= False):
     env = model.env
     P_arr = evaluate_env(P_i, env.geometry)[0]
     p_max = P_arr.max()
     xvals = t.linspace(0, env.geometry.width, env.geometry.shape_x)
-    midpoint = t.tensor(env.geometry.height / 2)
-    midpoint_t = t.tile(midpoint, (len(xvals),))
+    midpoint_idx = int(env.geometry.shape_x / 2)
+    xvals_use = xvals[midpoint_idx:]
+    midpoint_y = t.tensor(env.geometry.height / 2)
+    midpoint_t = t.tile(midpoint_y, (len(xvals_use),))
     
-    coords = t.stack([xvals, midpoint_t], dim= 1)
+    coords = t.stack([xvals_use, midpoint_t], dim= 1)
 
     preds = model(coords).cpu().detach().numpy()
 
-    anal_midpoint = int(midpoint.item() / model.env.geometry.ds)
+    num_midpoint = int(midpoint_y.item() / model.env.geometry.ds)
 
-    anal_vals = P_arr[:, anal_midpoint]
+    num_vals = P_arr[midpoint_idx:, num_midpoint]
 
-    plt.plot(xvals, anal_vals, linewidth= 0.5, label = "Numerical (Fenicsx)")
-    plt.plot(xvals, preds, linewidth= 0.5, label= "Predicted (PyTorch)")
+    r_vals = xvals_use - env.geometry.width / 2
+
+    if do_analytical:
+        p_anal_vals = p_anal(r_vals.cpu().numpy() / R, env.params, R)
+        plt.plot(r_vals, p_anal_vals, linewidth= 0.5, label = "Analytical")
+
+    plt.plot(r_vals, num_vals, linewidth= 0.5, label = "Numerical (Fenicsx)")
+    plt.plot(r_vals, preds, linewidth= 0.5, label= "Predicted (PyTorch)")
     plt.title("Pressure profile comparison")
     plt.xlabel("x (cm)")
     plt.ylabel(r"$P_i$ (mmHg)")

@@ -20,13 +20,14 @@
     },
 
     "L_PL(S/V)_L" : {
-        "normal" : 5.5606e-5,
+        "placeholder" : 5.5606e-5,
+        "normal" : 0.0,
         "tumor" : 0.0
     },
 
     "L_P" : {
-        "normal" : 2.8e-7,
-        "tumor" : 3.6e-8
+        "tumor" : 2.8e-7,
+        "normal" : 3.6e-8
     },
 
 
