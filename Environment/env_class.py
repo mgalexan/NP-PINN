@@ -10,7 +10,7 @@ from Environment.geometry import GeometrySpace
 from Environment.flags import Flag
 
 from Util.evaluate_function import evaluate_env
-from Util.param_interp import DifferentiableField2D
+from Util.param_interp import DifferentiableField2D, DifferentiableField1D
 
 from dolfinx import fem, mesh
 import ufl
@@ -331,7 +331,10 @@ class ParamSpace:
         torch_funcs = {}
         for key in self.param_arrays.keys():
             arr = self.param_arrays[key]
-            torch_funcs[key] = DifferentiableField2D(arr, self.geometry)
+            if self.geometry.dim == 2:
+                torch_funcs[key] = DifferentiableField2D(arr, self.geometry)
+            elif self.geometry.dim == 1:
+                torch_funcs[key] = DifferentiableField1D(arr, self.geometry)
 
         self.torch_funcs = torch_funcs
 

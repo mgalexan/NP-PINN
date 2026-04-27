@@ -31,7 +31,9 @@ def model_concplot(model: ForwardPINN, name, time: float, save_ext):
     C_INT_preds_arr = C_INT_preds.cpu().detach().numpy().reshape(tt[time_idx].shape)
 
     
-    cmax = max(C_N_preds_arr.max(), C_F_preds_arr.max(), C_INT_preds_arr.max())
+    cmax_C_N = C_N_preds_arr.max()
+    cmax_C_F = C_F_preds_arr.max()
+    cmax_C_INT = C_INT_preds_arr.max()
 
     tickstep = 1 / model.env.geometry.ds
     x_ticks = np.arange(0, C_N_preds_arr.shape[0], tickstep)
@@ -41,36 +43,40 @@ def model_concplot(model: ForwardPINN, name, time: float, save_ext):
 
     fig, ax = plt.subplots(2, 3, figsize = (9, 5))
 
-    ax[0,0].imshow(C_N_preds_arr, vmin= 0, vmax = cmax)
+    img0 = ax[0,0].imshow(C_N_preds_arr, vmin= 0, vmax = cmax_C_N)
     ax[0,0].set_title(r"$C_N$")
     ax[0,0].set_xticks(x_ticks, x_tick_labels)
     ax[0,0].set_yticks(y_ticks, y_tick_labels)
 
-    ax[1,0].imshow(C_N_anal[time_idx], vmin= 0, vmax = cmax)
+    ax[1,0].imshow(C_N_anal[time_idx], vmin= 0, vmax = cmax_C_N)
     ax[1,0].set_xticks(x_ticks, x_tick_labels)
     ax[1,0].set_yticks(y_ticks, y_tick_labels)
 
-    ax[0,1].imshow(C_F_preds_arr, vmin= 0, vmax = cmax)
+    img1 = ax[0,1].imshow(C_F_preds_arr, vmin= 0, vmax = cmax_C_F)
     ax[0,1].set_title(r"$C_F$")
     ax[0,1].set_xticks(x_ticks, x_tick_labels)
     ax[0,1].set_yticks(y_ticks, y_tick_labels)
 
-    ax[1,1].imshow(C_F_anal[time_idx], vmin= 0, vmax = cmax)
+    ax[1,1].imshow(C_F_anal[time_idx], vmin= 0, vmax = cmax_C_F)
     ax[1,1].set_xticks(x_ticks, x_tick_labels)
     ax[1,1].set_yticks(y_ticks, y_tick_labels)
 
 
-    img = ax[0,2].imshow(C_INT_preds_arr, vmin= 0, vmax = cmax)
+    img2 = ax[0,2].imshow(C_INT_preds_arr, vmin= 0, vmax = cmax_C_INT)
     ax[0,2].set_title(r"$C_{INT}$")
     ax[0,2].set_xticks(x_ticks, x_tick_labels)
     ax[0,2].set_yticks(y_ticks, y_tick_labels)
 
-    ax[1,2].imshow(C_INT_anal[time_idx], vmin= 0, vmax = cmax)
+    ax[1,2].imshow(C_INT_anal[time_idx], vmin= 0, vmax = cmax_C_INT)
     ax[1,2].set_xticks(x_ticks, x_tick_labels)
     ax[1,2].set_yticks(y_ticks, y_tick_labels)
 
-    cbar = fig.colorbar(img, ax=ax, orientation='vertical', shrink=0.8)
-    cbar.set_label("Concentration")
+    cbar0 = fig.colorbar(img0, ax=ax[:,0], orientation='vertical', shrink=0.8)
+    cbar0.set_label("Concentration")
+    cbar1 = fig.colorbar(img1, ax=ax[:,1], orientation='vertical', shrink=0.8)
+    cbar1.set_label("Concentration")
+    cbar2 = fig.colorbar(img2, ax=ax[:,2], orientation='vertical', shrink=0.8)
+    cbar2.set_label("Concentration")
     fig.suptitle(f"Numerical and Model Predicted Concentrations at t= {time}")
     
 
@@ -79,38 +85,61 @@ def model_concplot(model: ForwardPINN, name, time: float, save_ext):
 def model_p_plot(model: ForwardPINN, P_i, save_ext):
     env = model.env
     P_arr = evaluate_env(P_i, env.geometry)[0]
-    p_max = P_arr.max()
-    xvals = t.linspace(0, env.geometry.width, env.geometry.shape_x)
-    yvals = t.linspace(0, env.geometry.height, env.geometry.shape_y)
+    P_arr = np.asarray(P_arr)
 
-    coords = t.meshgrid(xvals, yvals, indexing= "ij")
-    coords = t.stack(coords, dim= -1).reshape(-1,2)
+    if P_arr.ndim == 2:
+        p_max = P_arr.max()
+        xvals = t.linspace(0, env.geometry.width, env.geometry.shape_x)
+        yvals = t.linspace(0, env.geometry.height, env.geometry.shape_y)
 
-    preds = model(coords).cpu().detach().numpy()
-    preds = preds.reshape(env.geometry.shape_x, env.geometry.shape_y)
+        coords = t.meshgrid(xvals, yvals, indexing= "ij")
+        coords = t.stack(coords, dim= -1).reshape(-1,2)
 
-    tickstep = 1 / model.env.geometry.ds
-    x_ticks = np.arange(0, preds.shape[0], tickstep)
-    y_ticks = np.arange(0, preds.shape[1], tickstep)
-    x_tick_labels = range(len(x_ticks))
-    y_tick_labels = range(len(y_ticks))
+        preds = model(coords).cpu().detach().numpy()
+        preds = preds.reshape(env.geometry.shape_x, env.geometry.shape_y)
 
-    fig, ax = plt.subplots(2, figsize= (4.8, 6.4))
+        tickstep = 1 / model.env.geometry.ds
+        x_ticks = np.arange(0, preds.shape[0], tickstep)
+        y_ticks = np.arange(0, preds.shape[1], tickstep)
+        x_tick_labels = range(len(x_ticks))
+        y_tick_labels = range(len(y_ticks))
 
-    ax[0].imshow(preds, vmin= 0, vmax= p_max)
-    ax[0].set_title("Predicted (PyTorch)")
-    ax[0].set_xticks(x_ticks, x_tick_labels)
-    ax[0].set_yticks(y_ticks, y_tick_labels)
+        fig, ax = plt.subplots(2, figsize= (4.8, 6.4))
 
-    img = ax[1].imshow(P_arr, vmin= 0, vmax= p_max)
-    ax[1].set_title("Numerical (Fenicsx)")
-    ax[1].set_xticks(x_ticks, x_tick_labels)
-    ax[1].set_yticks(y_ticks, y_tick_labels)
+        ax[0].imshow(preds, vmin= 0, vmax= p_max)
+        ax[0].set_title("Predicted (PyTorch)")
+        ax[0].set_xticks(x_ticks, x_tick_labels)
+        ax[0].set_yticks(y_ticks, y_tick_labels)
 
-    fig.colorbar(img, ax=ax, orientation='vertical')
-    fig.suptitle("Pressure Profile Comparison")
+        img = ax[1].imshow(P_arr, vmin= 0, vmax= p_max)
+        ax[1].set_title("Numerical (Fenicsx)")
+        ax[1].set_xticks(x_ticks, x_tick_labels)
+        ax[1].set_yticks(y_ticks, y_tick_labels)
 
-    fig.savefig("./Plots/" + save_ext + "_pressure_model.png")
+        fig.colorbar(img, ax=ax, orientation='vertical')
+        fig.suptitle("Pressure Profile Comparison")
+        fig.savefig("./Plots/" + save_ext + "_pressure_model.png")
+        plt.close(fig)
+
+    elif P_arr.ndim == 1:
+        rvals = t.linspace(0, env.geometry.width, P_arr.shape[0])
+        coords = rvals.unsqueeze(-1)
+
+        preds = model(coords).cpu().detach().numpy().flatten()
+        P_line = P_arr.flatten()
+
+        fig, ax = plt.subplots(figsize=(6.4, 4.8))
+        ax.plot(rvals.numpy(), P_line, label='Numerical (Fenicsx)', linewidth=1)
+        ax.plot(rvals.numpy(), preds, label='Predicted (PyTorch)', linewidth=1)
+        ax.set_title('Pressure Profile Comparison')
+        ax.set_xlabel('r')
+        ax.set_ylabel('Pressure')
+        ax.legend()
+        fig.savefig("./Plots/" + save_ext + "_pressure_model.png")
+        plt.close(fig)
+
+    else:
+        raise ValueError(f"Unsupported P_arr ndim={P_arr.ndim} for model_p_plot")
 
 def model_p_lineplot(model: ForwardPINN, P_i, save_ext, R, do_analytical= False):
     env = model.env
@@ -162,44 +191,51 @@ def model_conc_anim(model: ForwardPINN, name, save_ext, fps= 30):
     y_tick_labels = range(len(y_ticks))
 
     # Color scale across all time steps
-    cmax = max(C_N_anal.max(), C_F_anal.max(), C_INT_anal.max())
+    cmax_C_N = C_N_anal.max()
+    cmax_C_F = C_F_anal.max()
+    cmax_C_INT = C_INT_anal.max()
 
-    fig, ax = plt.subplots(2, 3, figsize=(9, 5))
+    fig, ax = plt.subplots(2, 3, figsize=(12, 5))
 
     # --- First Row: Predicted ---
-    im_pred_N = ax[0, 0].imshow(np.zeros_like(tt[0]), vmin=0, vmax=cmax, cmap= "Blues")
+    im_pred_N = ax[0, 0].imshow(np.zeros_like(tt[0]), vmin=0, vmax=cmax_C_N, cmap= "Blues")
     ax[0, 0].set_title(r"$C_N$")
     ax[0, 0].set_ylabel("Predicted (PyTorch)")
     ax[0, 0].set_xticks(x_ticks, x_tick_labels)
     ax[0, 0].set_yticks(y_ticks, y_tick_labels)
 
-    im_pred_F = ax[0, 1].imshow(np.zeros_like(tt[0]), vmin=0, vmax=cmax, cmap= "Blues")
+    im_pred_F = ax[0, 1].imshow(np.zeros_like(tt[0]), vmin=0, vmax=cmax_C_F, cmap= "Blues")
     ax[0, 1].set_title(r"$C_F$")
     ax[0, 1].set_xticks(x_ticks, x_tick_labels)
     ax[0, 1].set_yticks(y_ticks, y_tick_labels)
 
-    im_pred_INT = ax[0, 2].imshow(np.zeros_like(tt[0]), vmin=0, vmax=cmax, cmap= "Blues")
+    im_pred_INT = ax[0, 2].imshow(np.zeros_like(tt[0]), vmin=0, vmax=cmax_C_INT, cmap= "Blues")
     ax[0, 2].set_title(r"$C_{INT}$")
     ax[0, 2].set_xticks(x_ticks, x_tick_labels)
     ax[0, 2].set_yticks(y_ticks, y_tick_labels)
 
     # --- Second Row: FEM ---
-    im_anal_N = ax[1, 0].imshow(C_N_anal[0], vmin=0, vmax=cmax, cmap= "Blues")
+    im_anal_N = ax[1, 0].imshow(C_N_anal[0], vmin=0, vmax=cmax_C_N, cmap= "Blues")
     ax[1, 0].set_ylabel("FEM (FEniCSx)")
     ax[1, 0].set_xticks(x_ticks, x_tick_labels)
     ax[1, 0].set_yticks(y_ticks, y_tick_labels)
 
-    im_anal_F = ax[1, 1].imshow(C_F_anal[0], vmin=0, vmax=cmax, cmap= "Blues")
+    im_anal_F = ax[1, 1].imshow(C_F_anal[0], vmin=0, vmax=cmax_C_F, cmap= "Blues")
     ax[1, 1].set_xticks(x_ticks, x_tick_labels)
     ax[1, 1].set_yticks(y_ticks, y_tick_labels)
 
-    im_anal_INT = ax[1, 2].imshow(C_INT_anal[0], vmin=0, vmax=cmax, cmap= "Blues")
+    im_anal_INT = ax[1, 2].imshow(C_INT_anal[0], vmin=0, vmax=cmax_C_INT, cmap= "Blues")
     ax[1, 2].set_xticks(x_ticks, x_tick_labels)
     ax[1, 2].set_yticks(y_ticks, y_tick_labels)
 
-    # Add colorbar to last predicted column
-    cbar = fig.colorbar(im_pred_INT, ax=ax, orientation='vertical', shrink=0.8)
-    cbar.set_label("Concentration")
+    # Add colorbars
+
+    cbar_N = fig.colorbar(im_pred_N, ax=ax[:,0], orientation='vertical', shrink=0.8)
+    cbar_N.set_label("Concentration")
+    cbar_F = fig.colorbar(im_pred_F, ax=ax[:,1], orientation='vertical', shrink=0.8)
+    cbar_F.set_label("Concentration")
+    cbar_INT = fig.colorbar(im_pred_INT, ax=ax[:,2], orientation='vertical', shrink=0.8)
+    cbar_INT.set_label("Concentration")
 
     # Animation update function
     def update(frame_idx):

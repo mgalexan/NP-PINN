@@ -33,6 +33,32 @@ class DifferentiableField2D(torch.nn.Module):
         values = F.grid_sample(self.field, grid, mode='nearest', align_corners= True)
         return values.view(-1, 1)  # shape (N,)
 
+class DifferentiableField1D(torch.nn.Module):
+    def __init__(self, arr_1d: torch.Tensor, geo: GeometrySpace):
+        super().__init__()
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        field = torch.tensor(arr_1d, dtype=torch.float32)
+        self.register_buffer("field", field.unsqueeze(0).unsqueeze(0).unsqueeze(-1))
+        self.width = geo.width
+
+        self.to(self.device)
+
+    def forward(self, coords: torch.Tensor) -> torch.Tensor:
+        """
+        coords: tensor of shape (N, 1) or (N, 2) where the last dimension is r
+        Returns: interpolated values at those coordinates, shape (N, 1)
+        """
+        if coords.shape[-1] == 1:
+            r = coords[:, 0]
+        else:
+            r = coords[:, -1]
+        r = r / self.width * 2 - 1
+        zeros = torch.zeros_like(r)
+        norm_coords = torch.stack((r, zeros), dim=1)
+        grid = norm_coords.view(1, -1, 1, 2)
+        values = F.grid_sample(self.field, grid, mode='nearest', align_corners=True)
+        return values.view(-1, 1)
+
 class FieldWrapper(torch.nn.Module):
     """
     Wrap a time-independent field into a 3d space for use with radients

@@ -107,6 +107,34 @@ class PDatata(Dataset):
     
     def __len__(self):
         return len(self.coords)
+    
+class PDatataRadial(Dataset):
+    def __init__(self, P_i: Function, env: ParamSpace, sample_ratio = 1.0):
+        super().__init__()
+        self.device = t.device("cuda" if t.cuda.is_available() else "cpu")
+
+
+        P_mat = evaluate_env(P_i, env.geometry)[0]
+
+        P_mat = t.from_numpy(P_mat).reshape(-1, 1).to(self.device)
+
+        rvals = t.linspace(0, env.geometry.width, env.geometry.shape_x)
+
+        coords = t.meshgrid(rvals, indexing= "ij")
+        coords = t.stack(coords, dim= -1).reshape(-1,1).to(self.device)
+
+        k = int(len(coords) * sample_ratio)
+
+        indices = t.randperm(coords.size(0))[:k]
+        
+        self.data = P_mat[indices].float()
+        self.coords = coords[indices].float()
+    
+    def __getitem__(self, index):
+        return self.coords[index], self.data[index] 
+    
+    def __len__(self):
+        return len(self.coords)
         
 
 
@@ -117,6 +145,9 @@ def get_loaders(input, p: MLParams, sample_ratio = 1.0, data_type: str = "concen
     
     elif data_type == "pressure":
         data = PDatata(input[0], input[1], sample_ratio)
+
+    elif data_type == "pressure_radial":
+        data = PDatataRadial(input[0], input[1], sample_ratio)
     
     elif data_type == "concentration_sparse":
         data = SparseConcData(input[0], input[1], sample_ratio)

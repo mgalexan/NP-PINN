@@ -15,6 +15,21 @@ def gradient(tens, coords, type= "temporal"):
     elif type == "spatial":
         return grad
 
+def gradient_radial(tens, coords):
+    """
+    Compute radial gradient in spherical coordinates.
+    coords has shape (N, 2): [t, r]
+    Returns dr component only, shape (N, 1)
+    """
+    grad = t.autograd.grad(
+        outputs=tens,
+        inputs=coords,
+        grad_outputs=t.ones_like(tens),
+        create_graph=True,
+        retain_graph=True,
+    )[0]  # shape (N, 2)
+    return grad[:, 1:2]  # keep only r component, shape (N, 1)
+
     
 def divergence(field, coords, type= "temporal"):
     
@@ -35,6 +50,73 @@ def divergence(field, coords, type= "temporal"):
     
     
     return div.unsqueeze(-1)  # shape: (N,)
+
+def divergence_radial(field, coords):
+    """
+    Compute divergence of a radial vector field in spherical coordinates.
+    field has shape (N, 1): radial component only
+    coords has shape (N, 2): [t, r]
+    Returns div shape (N, 1)
+    
+    In spherical coordinates: div(v) = (1/r²) d(r² * v_r)/dr
+    """
+    r = coords[:, 1:2]  # shape (N, 1)
+    
+    # Compute d(r² * field)/dr
+    r_squared_field = r**2 * field
+    
+    grad = t.autograd.grad(
+        outputs=r_squared_field,
+        inputs=coords,
+        grad_outputs=t.ones_like(r_squared_field),
+        create_graph=True,
+        retain_graph=True,
+    )[0]  # shape (N, 2)
+    
+    d_r_squared_field = grad[:, 1:2]  # dr component, shape (N, 1)
+    
+    # Divide by r²
+    div = d_r_squared_field / (r**2 + 1e-10)  # add small epsilon to avoid division by zero
+    
+    return div
+
+def laplacian_radial(tens, coords):
+    """
+    Compute Laplacian in spherical coordinates with radial symmetry.
+    tens has shape (N, 1)
+    coords has shape (N, 2): [t, r]
+    Returns Laplacian shape (N, 1)
+    
+    In spherical coordinates: ∇²u = d²u/dr² + (2/r) du/dr
+    """
+    r = coords[:, 1:2]  # shape (N, 1)
+    
+    # First derivative
+    grad_u = t.autograd.grad(
+        outputs=tens,
+        inputs=coords,
+        grad_outputs=t.ones_like(tens),
+        create_graph=True,
+        retain_graph=True,
+    )[0]  # shape (N, 2)
+    
+    du_dr = grad_u[:, 1:2]  # shape (N, 1)
+    
+    # Second derivative
+    grad2_u = t.autograd.grad(
+        outputs=du_dr,
+        inputs=coords,
+        grad_outputs=t.ones_like(du_dr),
+        create_graph=True,
+        retain_graph=True,
+    )[0]  # shape (N, 2)
+    
+    d2u_dr2 = grad2_u[:, 1:2]  # shape (N, 1)
+    
+    # Combine: ∇²u = d²u/dr² + (2/r) du/dr
+    laplacian = d2u_dr2 + (2.0 / (r + 1e-10)) * du_dr
+    
+    return laplacian
 
 def diff_t(tens, coords):
     grad = t.autograd.grad(
@@ -69,6 +151,20 @@ def pressure_phys_loss(P_i, coords, p):
     lhs = divergence(gradient(P_i, coords, "spatial"), coords, "spatial") * p["kappa"](coords)
     rhs = compute_phi_B(P_i, coords, p) - compute_phi_L(P_i, coords, p)
     return t.sqrt(t.sum(t.square(lhs + rhs)))
+
+def pressure_phys_loss_radial(P_i, coords, p):
+    """
+    Pressure physics loss in spherical coordinates with radial symmetry.
+    coords: (N, 2) tensor [t, r]
+    P_i: (N, 1) interstitial pressure
+    p: dictionary with parameter functions
+    
+    PDE: kappa * ∇²P_i = Phi_B - Phi_L
+    where ∇² is the Laplacian in spherical coordinates
+    """
+    lhs = laplacian_radial(P_i, coords) * p["kappa"](coords)
+    rhs = compute_phi_B(P_i, coords, p) - compute_phi_L(P_i, coords, p)
+    return t.mean(t.square(lhs + rhs))
 
 def compute_Pe_ratio(SV, P, sigma_f, phi_B):
 
@@ -174,14 +270,16 @@ def nano_physics(d, alpha, p, device= t.device("cpu")):
 
     D_0 = p["K_b"] * p["T"] / (3 * m.pi * p["eta"] * d)
 
+
+
     # Compute a, b, sigma for D:
-    sigma = "TODO"
-    lambda_prime = "TODO"
+    lambda_prime = d / p["d_f"]
+    b = 0.174 * m.log(59.6 / lambda_prime)
+    sigma = p["sigma"]  
+    f = (1 + lambda_prime) / (2 * sigma)
 
 
-    #a = m.pi
-    #b = 0.174 * m.log(59.6 / lambda_prime)
-    #f = (1 + lambda_prime) / (2 * sigma)
+
 
     # Now compute the parameters we need to return
 
@@ -189,17 +287,80 @@ def nano_physics(d, alpha, p, device= t.device("cpu")):
 
     P = p["gamma"] * H * D_0 / p["L"]
 
-    K_rel = 4.2e-5 / (alpha * (1 + d))
+    K_rel = 5.04e-5 / (alpha * (1 + d/ 100e-7))
 
-    D = D_0 #* t.exp( - a * sigma ** b - 0.84 * f ** 1.09)
+    D = D_0 * m.exp( - p["a"] * sigma ** b - 0.84 * f ** 1.09)
 
     
 
     return sigma_f, P, K_rel, D
 
-
-
+def C_N_loss_radial(coords, C_N, D_N, v_r, div_v_r, K_rel, Phi_C, Phi_N):
+    """
+    Nanoparticle concentration loss in spherical coordinates with radial symmetry.
+    coords: (N, 2) tensor [t, r]
+    C_N: (N, 1) concentration
+    D_N: (N, 1) diffusivity
+    v_r: (N, 1) radial velocity
+    div_v_r: (N, 1) divergence of radial velocity
+    K_rel: (N, 1) release rate
+    Phi_C, Phi_N: (N, 1) source terms
     
+    PDE: ∂C_N/∂t = D_N * ∇²C_N - div(v_r * C_N) - K_rel*C_N + Phi_C - Phi_N*C_N
+    where div(v_r * C_N) = v_r * ∂C_N/∂r + C_N * div(v_r)
+    """
+    lhs = diff_t(C_N, coords)
+    
+    # Diffusion term: D_N * ∇²C_N
+    rhs = D_N * laplacian_radial(C_N, coords)
+    
+    # Convection term: -div(v_r * C_N) = -(v_r * ∂C_N/∂r + C_N * div(v_r))
+    grad_C_N = gradient_radial(C_N, coords)
+    rhs -= v_r * grad_C_N
+    rhs -= C_N * div_v_r
+    
+    # Reaction terms
+    rhs += -K_rel * C_N + Phi_C - Phi_N * C_N
+    
+    return t.mean(t.square(lhs - rhs))
 
+
+def C_F_loss_radial(coords, C_F, C_N, C_INT, D_F, v_r, div_v_r, alpha, K_rel, K_INT, K_degINT, K_degF):
+    """
+    Free concentration loss in spherical coordinates with radial symmetry.
+    coords: (N, 2) tensor [t, r]
+    C_F: (N, 1) free concentration
+    v_r: (N, 1) radial velocity
+    div_v_r: (N, 1) divergence of radial velocity
+    """
+    lhs = diff_t(C_F, coords)
+    
+    # Diffusion term
+    rhs = D_F * laplacian_radial(C_F, coords)
+    
+    # Convection term: -div(v_r * C_F) = -(v_r * ∂C_F/∂r + C_F * div(v_r))
+    grad_C_F = gradient_radial(C_F, coords)
+    rhs -= v_r * grad_C_F
+    rhs -= C_F * div_v_r
+    
+    # Reaction terms
+    rhs += alpha * K_rel * C_N - K_INT * C_F
+    rhs += K_degINT * C_INT - K_degF * C_F
+    
+    return t.mean(t.square(lhs - rhs))
+
+
+def C_INT_loss_radial(coords, C_INT, C_F, K_degINT, K_INT):
+    """
+    Internalized concentration loss in spherical coordinates with radial symmetry.
+    coords: (N, 2) tensor [t, r]
+    C_INT: (N, 1) internalized concentration
+    No spatial diffusion, only reaction terms.
+    """
+    lhs = diff_t(C_INT, coords)
+    
+    rhs = K_INT * C_F - K_degINT * C_INT
+    
+    return t.mean(t.square(lhs - rhs))
 
 
