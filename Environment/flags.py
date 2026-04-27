@@ -9,10 +9,11 @@ class Flag:
 
 class SphericalFlag(Flag):
     """ Spherically shaped tumors """
-    def __init__(self, center, r: float):
+    def __init__(self, center, r: float, smoothing_width: float = 0.0):
         super().__init__()
         self.center = center[::-1]
         self.r = np.array(r)
+        self.smoothing_width = smoothing_width
 
     def apply_flag(self, geo: GeometrySpace) -> np.ndarray:
         if not(isinstance(geo.coord_matrix, np.ndarray)):
@@ -20,7 +21,34 @@ class SphericalFlag(Flag):
             return None
         
         pos = geo.coord_matrix
-        checked_indices = np.sum((pos - self.center)**2, -1) <= self.r**2
+        distances_squared = np.sum((pos - self.center)**2, -1)
+        
+        if self.smoothing_width > 0:
+            # Create smooth transition zone
+            inner_r = self.r - self.smoothing_width/2
+            outer_r = self.r + self.smoothing_width/2
+            
+            # Calculate distance from center
+            dist_from_center = np.sqrt(np.sum((pos - self.center)**2, -1))
+            
+            # Initialize result array
+            checked_indices = np.zeros_like(dist_from_center)
+            
+            # Inside inner radius: 1
+            checked_indices[dist_from_center <= inner_r] = 1.0
+            
+            # In transition zone: linear interpolation
+            transition_mask = (dist_from_center > inner_r) & (dist_from_center < outer_r)
+            if np.any(transition_mask):
+                normalized_dist = (dist_from_center[transition_mask] - inner_r) / self.smoothing_width
+                checked_indices[transition_mask] = 1 - normalized_dist
+            
+            # Outside outer radius: 0
+            checked_indices[dist_from_center >= outer_r] = 0.0
+        else:
+            # Sharp cutoff
+            checked_indices = (distances_squared <= self.r**2).astype(float)
+        
         checked_indices = np.transpose(checked_indices)
         return checked_indices
     

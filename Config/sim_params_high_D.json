@@ -20,8 +20,8 @@
     },
 
     "L_PL(S/V)_L" : {
-        "normal" : 5.5606e-5,
-        "placeholder" : 0.0,
+        "placeholder" : 5.5606e-5,
+        "normal" : 0.0,
         "tumor" : 0.0
     },
 
@@ -40,7 +40,9 @@
 
     "P_L" : 0.0,
 
-    "tau" : 30000.0, 
+
+    
+    "tau" : 79200.0, 
 
     "P" : {
         "normal" : 2.02e-8, 
@@ -48,8 +50,8 @@
     },
 
     "D_N" : {
-        "normal" : 0.0,
-        "tumor" : 7e-8
+        "normal" : 4.52e-8,
+        "tumor" : 7e-7
     },
 
     "sigma_f" : 0.0433,

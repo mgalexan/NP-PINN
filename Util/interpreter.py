@@ -253,7 +253,7 @@ class Interpreter():
                 else:
                     line,  = plt.plot(self.xvals, self.C_vals[i][n][self.midpoint], linewidth =0.5)
                 plt.ylim(0, max_c)
-                plt.title(f"Concentration at time t= {n * self.dt * self.sample_rate}")
+                plt.title(f"Concentration at time t= {round(n * self.dt * self.sample_rate, 1)} s")
                 plt.xlabel("x (cm)")
                 plt.ylabel(self.labels_tex[i])
    
