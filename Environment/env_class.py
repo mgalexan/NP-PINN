@@ -174,7 +174,7 @@ class ParamSpace:
 
 
                 # Update geometry
-                V_new = fem.functionspace(refined_mesh, ("CG", 1))
+                V_new = fem.functionspace(refined_mesh, ("CG", 3))
                 self.geometry.V = V_new
                 self.geometry.mesh = refined_mesh
 
@@ -252,7 +252,17 @@ class ParamSpace:
 
                 for tag in priority_list:
                     if (tag in self.params[param]) & (tag in self.flag_locs):
-                        param_array[np.where(self.flag_locs[tag] == True)] = self.params[param][tag]
+                        # For smoothed flags, interpolate between normal and tag values
+                        if tag in self.flag_locs and np.any((self.flag_locs[tag] > 0) & (self.flag_locs[tag] < 1)):
+                            # Linear interpolation
+                            flag_values = self.flag_locs[tag]
+                            param_array = (1 - flag_values) * self.params[param]["normal"] + flag_values * self.params[param][tag]
+                        else:
+                            # Sharp transition
+                            param_array[np.where(self.flag_locs[tag] >= 0.5)] = self.params[param][tag]
+
+                if param in {"D_N", "D_F"}:
+                    param_array = np.maximum(param_array, 1e-12)
             
             else:
                 param_array = np.ones(self.geometry.shape) * self.params[param]
@@ -292,7 +302,7 @@ class ParamSpace:
             elif self.geometry.dim == 1:
                 x_coords = self.geometry.coord_matrix[:,0]
 
-                interp = RegularGridInterpolator([x_coords], self.param_arrays[param], "cubic", bounds_error=False, fill_value= fill)
+                interp = RegularGridInterpolator([x_coords], self.param_arrays[param], "linear", bounds_error=False, fill_value= fill)
 
 
             else:

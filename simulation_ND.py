@@ -1,8 +1,8 @@
 from Environment.geometry import GeometrySpace
 from Environment.env_class import ParamSpace
 from Environment.flags import SphericalFlag, EdgeFlag2D, SphericalTaperingFlag
-from Physics.calculate_pressure import calculate_pressure
-from Physics.calculate_conc import calculate_concentrations
+from Physics.calculate_pressure_ND import calculate_pressure
+from Physics.calculate_conc_ND import calculate_concentrations
 from Util.interpreter import Interpreter
 from Util.evaluate_function import evaluate_env
 import numpy as np
@@ -22,7 +22,7 @@ rank = comm.Get_rank()
     
 name = "nondim"
 
-test_geo = GeometrySpace(4, 4, 0, 0.1, 0.1, 18000)
+test_geo = GeometrySpace(4, 4, 0, 0.01, 0.0000001, 0.0001)
 
 test = ParamSpace(test_geo)
 
@@ -47,11 +47,11 @@ if rank == 0:
 P_i = calculate_pressure(test, "neumann")
 if rank == 0:
     print("Done!", flush=True)
-
+'''
 # quick plot of pressure
 if rank == 0:
     p_vals, _ = evaluate_env(P_i, test.geometry)
-    plt.imshow(p_vals.reshape((41, 41)), origin="lower")
+    plt.imshow(p_vals.reshape((201, 201)), origin="lower")
     plt.colorbar(label="Pressure")
     plt.title("Pressure Distribution")
     plt.xlabel("x (cm)")
@@ -61,7 +61,7 @@ if rank == 0:
 '''
 if rank == 0:
     print("Computing Concentrations...", flush=True)
-C = calculate_concentrations(test, P_i, "dirichlet", sample_rate=500, verbose= False)
+C = calculate_concentrations(test, P_i, "dirichlet", sample_rate=100, verbose= False)
 if rank == 0:
     print("Done!", flush=True)
 
@@ -70,7 +70,7 @@ if rank == 0:
 labels = ["C_N", "C_F", "C_INT"]
 labels_tex = [r"$C_N$", r"$C_F$", r"$C_{INT}$"]
 
-interp = Interpreter(test, C, P_i, sample_rate= 500, labels=labels, labels_tex=labels_tex)
+interp = Interpreter(test, C, P_i, sample_rate= 100, labels=labels, labels_tex=labels_tex)
 
 comm.barrier()
 
@@ -90,4 +90,3 @@ if rank == 0:
 
 
     print("Done!", flush=True)
-'''

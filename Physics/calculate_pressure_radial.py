@@ -62,22 +62,27 @@ def calculate_pressure(space: ParamSpace, boundary_cond: str) -> fem.function.Fu
         return
 
     # Next get the parameters set up:
-    p = space.param_funcs
-
-
     
-    lambda_B = p["L_P"] * p["S/V"] / p["kappa"]
-    lambda_L = p["L_PL(S/V)_L"] / p["kappa"]
+    constant = pressure_constant(space.param_funcs)
+    leading = pressure_leading(space.param_funcs)
     
     # Set up the equation for pressure
+    # Spatial coordinate (1D mesh assumed radial)
+    x = ufl.SpatialCoordinate(msh)
+    r = x[0]
 
+    # Avoid division issues at r=0 if needed
+    r_safe = ufl.max_value(r, 1e-8)
 
-    a =  -inner(grad(u), grad(v)) * dx(msh) - (lambda_B + lambda_L) * u * v * dx(msh)          
+    # Weighted measure (Jacobian for spherical coords)
+    weight = r_safe**2
 
-    L = -lambda_B * v * dx(msh)
+    a = (inner(grad(u), grad(v)) * weight * dx
+        - leading * u * v * weight * dx)
+
+    L = constant * v * weight * dx
 
     # Solve the problem!
-    # Track logs
     problem = LinearProblem(a, L, bcs, petsc_options={"ksp_type": "cg", "pc_type": "hypre"})
     uh = problem.solve()
     return uh

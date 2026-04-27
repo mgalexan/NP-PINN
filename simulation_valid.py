@@ -22,7 +22,7 @@ rank = comm.Get_rank()
     
 name = "pH_test"
 
-test_geo = GeometrySpace(5, 5, 0, 0.02, 0.1, 36000)
+test_geo = GeometrySpace(5, 5, 0, 0.02, 0.1, 108000)
 
 test = ParamSpace(test_geo)
 
