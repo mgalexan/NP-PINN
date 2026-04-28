@@ -143,7 +143,7 @@ def calculate_concentrations(env: ParamSpace, P_i: fem.function.Function, bounda
     # Assemble a Bilinear form for solving with stabilization for spherical case
     a  = (  (1/dt) * C_Nt * w_N * r_squared
       + p["D_N"] * dot(grad(C_Nt), grad(w_N)) * r_squared
-      + dot(v_i, grad(w_N)) * C_Nt * r_squared
+      - dot(v_i, grad(C_Nt)) * w_N * r_squared
       + p["K_rel"] * C_Nt * w_N * r_squared
       + Phi_CF * C_Nt * w_N * r_squared
       + (1-edge) * tau_stab_N * (1/dt) * C_Nt * (1/dt) * w_N * r_squared) * dx 
@@ -151,7 +151,7 @@ def calculate_concentrations(env: ParamSpace, P_i: fem.function.Function, bounda
                
     a += (  (1/dt) * C_Ft * w_F * r_squared
         + p["D_F"] * dot(grad(C_Ft), grad(w_F)) * r_squared
-        + dot(v_i, grad(w_F)) * C_Ft * r_squared
+        - dot(v_i, grad(C_Ft)) * w_F * r_squared
         + (p["K_INT"] + p["K_deg-F"]) * C_Ft * w_F * r_squared
         - p["alpha"] * p["K_rel"] * C_Nt * w_F * r_squared            
         - p["K_deg-INT"] * C_INTt * w_F * r_squared
